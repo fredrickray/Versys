@@ -92,7 +92,8 @@ export class NotificationsService {
           'sms_fallback',
           { attemptId: attempt.id },
           {
-            jobId: `sms_fallback:${attempt.id}`,
+            // BullMQ custom jobId cannot contain ':'
+            jobId: `sms_fallback-${attempt.id}`,
             delay: this.ackTimeoutMs,
             removeOnComplete: true,
           },
@@ -114,7 +115,7 @@ export class NotificationsService {
     attempt.ackedAt = new Date();
     await this.attempts.save(attempt);
 
-    const job = await this.notifyQueue.getJob(`sms_fallback:${attemptId}`);
+    const job = await this.notifyQueue.getJob(`sms_fallback-${attemptId}`);
     if (job) await job.remove();
     return { ok: true };
   }

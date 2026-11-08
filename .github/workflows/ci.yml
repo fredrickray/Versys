@@ -46,7 +46,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          # 24.9+ required for Jest require(esm) of Nest packages
+          node-version: "24"
           cache: npm
       - name: Use npm 10 (matches lockfile)
         run: npm install -g npm@10.9.2
@@ -54,3 +55,11 @@ jobs:
       - run: npm run lint
       - run: npm test -- --passWithNoTests
       - run: npm run build
+      - name: Migrate + seed
+        run: |
+          npm run migration:run
+          npm run seed
+      - name: E2E core loop
+        run: npm run test:e2e
+        env:
+          NODE_OPTIONS: --experimental-vm-modules

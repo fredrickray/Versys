@@ -37,7 +37,8 @@ export class OfflineAlertsService {
         dto,
       },
       {
-        jobId: `offline:${actor.userId}:${dto.clientEventId}`,
+        // BullMQ custom jobId cannot contain ':'
+        jobId: `offline-${actor.userId}-${dto.clientEventId}`,
         removeOnComplete: true,
         attempts: 8,
         backoff: { type: 'exponential', delay: 2000 },
