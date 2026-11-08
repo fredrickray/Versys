@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { QueuesModule } from '../../queues/queues.module';
 import { ChannelsModule } from '../channels/channels.module';
+import { DevicesModule } from '../devices/devices.module';
 import { UsersModule } from '../users/users.module';
 import { NotificationAttemptEntity } from './entities/notification-attempt.entity';
 import { NotificationsController } from './notifications.controller';
@@ -14,6 +15,7 @@ import { FcmProvider } from './providers/fcm.provider';
     QueuesModule,
     ChannelsModule,
     UsersModule,
+    DevicesModule,
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService, FcmProvider],

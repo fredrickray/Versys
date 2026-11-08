@@ -39,6 +39,12 @@ export const envSchema = z.object({
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
 
   FCM_ENABLED: bool.default(false),
+  /** Firebase Admin service account — required when FCM_ENABLED=true for real pushes */
+  FIREBASE_PROJECT_ID: z.string().optional().default(''),
+  FIREBASE_CLIENT_EMAIL: z.string().optional().default(''),
+  /** PEM private key; use \n for newlines in .env */
+  FIREBASE_PRIVATE_KEY: z.string().optional().default(''),
+
   SMS_PROVIDER: z.enum(['mock', 'aggregator']).default('mock'),
   CORS_ORIGINS: z
     .string()

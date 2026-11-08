@@ -1,7 +1,7 @@
 {
   "name": "versys",
   "version": "0.0.1",
-  "description": "VERSYS \u2014 Veritas Emergency Response System API",
+  "description": "VERSYS — Veritas Emergency Response System API",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -57,6 +57,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^16.4.7",
+    "firebase-admin": "^14.5.0",
     "helmet": "^8.3.0",
     "ioredis": "^5.11.1",
     "passport": "^0.7.0",

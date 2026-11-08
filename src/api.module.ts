@@ -22,6 +22,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlacesModule } from './modules/places/places.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { OpsModule } from './modules/ops/ops.module';
+import { DevicesModule } from './modules/devices/devices.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { OpsModule } from './modules/ops/ops.module';
     AuthModule,
     UsersModule,
     RbacModule,
+    DevicesModule,
     IncidentsModule,
     AssignmentsModule,
     EscalationModule,
