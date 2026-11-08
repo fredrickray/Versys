@@ -5,15 +5,21 @@ import type {
   OutboundSmsResult,
 } from './messaging-provider.interface';
 
-/** Swap-in when telecom aggregator is chosen. */
+/**
+ * Legacy placeholder name — prefer SMS_PROVIDER=termii.
+ * Kept so older env values don't crash; always fails closed.
+ */
 @Injectable()
 export class AggregatorMessagingProvider implements MessagingProvider {
   private readonly logger = new Logger(AggregatorMessagingProvider.name);
 
   sendSms(message: OutboundSms): Promise<OutboundSmsResult> {
     this.logger.warn(
-      `aggregator SMS not configured — dropping to ${message.toE164}`,
+      `SMS_PROVIDER=aggregator is deprecated — use termii. Dropping SMS to ${message.toE164}`,
     );
-    return Promise.resolve({ ok: false });
+    return Promise.resolve({
+      ok: false,
+      error: 'aggregator_deprecated_use_termii',
+    });
   }
 }

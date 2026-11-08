@@ -45,7 +45,18 @@ export const envSchema = z.object({
   /** PEM private key; use \n for newlines in .env */
   FIREBASE_PRIVATE_KEY: z.string().optional().default(''),
 
-  SMS_PROVIDER: z.enum(['mock', 'aggregator']).default('mock'),
+  SMS_PROVIDER: z.enum(['mock', 'termii', 'aggregator']).default('mock'),
+  SMS_TERMII_API_KEY: z.string().optional().default(''),
+  SMS_TERMII_SENDER_ID: z.string().optional().default(''),
+  SMS_TERMII_BASE_URL: z
+    .string()
+    .optional()
+    .default('https://api.ng.termii.com'),
+  /** Termii channel for OTP (dnd reaches DND-listed numbers). */
+  SMS_TERMII_OTP_CHANNEL: z.string().optional().default('dnd'),
+  /** Termii channel for alert / fallback SMS. */
+  SMS_TERMII_ALERT_CHANNEL: z.string().optional().default('generic'),
+
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:3000,http://localhost:8081'),

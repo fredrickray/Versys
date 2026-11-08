@@ -41,6 +41,15 @@ export default () => {
       privateKey: env.FIREBASE_PRIVATE_KEY || '',
     },
     smsProvider: env.SMS_PROVIDER ?? 'mock',
+    sms: {
+      termii: {
+        apiKey: env.SMS_TERMII_API_KEY || '',
+        senderId: env.SMS_TERMII_SENDER_ID || '',
+        baseUrl: env.SMS_TERMII_BASE_URL || 'https://api.ng.termii.com',
+        otpChannel: env.SMS_TERMII_OTP_CHANNEL || 'dnd',
+        alertChannel: env.SMS_TERMII_ALERT_CHANNEL || 'generic',
+      },
+    },
     corsOrigins: (env.CORS_ORIGINS ?? '')
       .split(',')
       .map((s) => s.trim())

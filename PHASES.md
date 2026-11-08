@@ -94,15 +94,17 @@ Wire Firebase Cloud Messaging end-to-end (device tokens + Admin SDK). Mock remai
 
 **Gate:** With `FCM_ENABLED=true` and credentials set, a registered device receives a real push for a new incident.
 
-### Phase 7 — Real SMS + OTP delivery
+### Phase 7 — Real SMS + OTP delivery *(implemented on feat/real-sms — awaiting Termii keys)*
 
-Replace mock SMS with a live aggregator; send OTP and alert fallbacks over the wire.
+Replace mock SMS with Termii; send OTP and alert fallbacks over the wire.
 
-- [ ] Choose aggregator (Termii / Africa's Talking / Twilio — open decision)
-- [ ] Implement provider + OTP via SMS (not only server logs)
-- [ ] USSD/SMS webhook secrets + staging short-code dry run
+- [x] Termii messaging provider (`SMS_PROVIDER=termii`)
+- [x] OTP request sends SMS (fails closed if Termii misconfigured)
+- [x] Alert SMS fallback uses Termii alert channel
+- [x] Inbound SMS/USSD webhook secret already supported (`CHANNEL_WEBHOOK_SECRET`)
+- [ ] Live short-code / USSD dry run with telecom (ops — after sender ID approved)
 
-**You provide after this phase:** Aggregator API key + sender ID / short code.
+**You provide before Phase 8:** Termii API key + approved sender ID (links in chat).
 
 ### Phase 8 — Deploy staging (then prod)
 
