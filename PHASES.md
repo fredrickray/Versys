@@ -76,3 +76,55 @@ No new features. On-site desk. Paper/radio protocol ready.
 - [ ] Live event staffing & printed packs (ops)
 
 **Gate:** Stable under expected event load; paper/radio protocol understood.
+
+---
+
+## Completion track (post Phase 5 — close production gaps)
+
+### Phase 6 — Real FCM *(implemented on feat/real-fcm — awaiting your Firebase keys)*
+
+Wire Firebase Cloud Messaging end-to-end (device tokens + Admin SDK). Mock remains when `FCM_ENABLED=false`.
+
+- [x] `device_tokens` table + register/unregister APIs
+- [x] `firebase-admin` send (alarm / vibrate / data payload)
+- [x] Env contract + OpenAPI devices paths
+- [x] Invalidate dead tokens on FCM error
+
+**You provide before Phase 7:** Firebase service account values in `.env` (links in chat after this phase).
+
+**Gate:** With `FCM_ENABLED=true` and credentials set, a registered device receives a real push for a new incident.
+
+### Phase 7 — Real SMS + OTP delivery
+
+Replace mock SMS with a live aggregator; send OTP and alert fallbacks over the wire.
+
+- [ ] Choose aggregator (Termii / Africa's Talking / Twilio — open decision)
+- [ ] Implement provider + OTP via SMS (not only server logs)
+- [ ] USSD/SMS webhook secrets + staging short-code dry run
+
+**You provide after this phase:** Aggregator API key + sender ID / short code.
+
+### Phase 8 — Deploy staging (then prod)
+
+Replace echo deploy workflows with real registry + host deploy.
+
+- [ ] Container registry push on CI
+- [ ] Staging deploy workflow (migrate + seed roles/places, no demo users in prod)
+- [ ] Prod workflow + runbook
+
+**You provide after this phase:** Hosting choice + registry/host credentials (Render / Fly / AWS / campus VPS — open decision).
+
+### Phase 9 — Mobile contract lock
+
+Ensure OpenAPI + auth/device/offline paths match what the mobile team ships; no backend feature work beyond contract fixes.
+
+- [ ] Contract review with mobile
+- [ ] Fix any field mismatches found in first client build
+
+### Phase 10 — Live ops readiness
+
+- [ ] Replace seed Level-4 phones with real agency numbers
+- [ ] Live drills + degraded-network ladder on staging
+- [ ] Event staffing / paper packs (ops)
+
+**Gate:** Two drills pass; paper/radio protocol understood on desk.

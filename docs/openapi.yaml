@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: VERSYS API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Veritas Emergency Response System — REST contract for mobile/web clients.
     Base path `/v1`. Bearer JWT after OTP verify.
@@ -12,6 +12,7 @@ tags:
   - name: Health
   - name: Ops
   - name: Auth
+  - name: Devices
   - name: Incidents
   - name: Assignments
   - name: Escalation
@@ -302,6 +303,40 @@ paths:
       responses:
         "202":
           description: Accepted
+  /devices/tokens:
+    post:
+      tags: [Devices]
+      summary: Register FCM device token for the authenticated user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string, minLength: 32, maxLength: 512 }
+                platform: { type: string, enum: [ios, android, web] }
+      responses:
+        "201":
+          description: Token registered (or reassigned to this user)
+    delete:
+      tags: [Devices]
+      summary: Unregister FCM device token
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, minLength: 32, maxLength: 512 }
+      responses:
+        "204":
+          description: Removed (or already absent)
   /notifications/{attemptId}/ack:
     post:
       tags: [Notifications]
