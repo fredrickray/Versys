@@ -48,6 +48,8 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+      - name: Use npm 10 (matches lockfile)
+        run: npm install -g npm@10.9.2
       - run: npm ci
       - run: npm run lint
       - run: npm test -- --passWithNoTests
