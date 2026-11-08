@@ -369,6 +369,7 @@ export class EscalationService {
         isAssignedResponder: false,
       },
       now: new Date(),
+      timers: this.scheduler.getTimers(),
     };
   }
 
@@ -395,6 +396,7 @@ export class EscalationService {
         isAssignedResponder: !!mine,
       },
       now: new Date(),
+      timers: this.scheduler.getTimers(),
     };
   }
 

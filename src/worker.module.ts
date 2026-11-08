@@ -9,6 +9,7 @@ import { EscalationJobsModule } from './modules/escalation/escalation-jobs.modul
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { NotificationsJobsModule } from './modules/notifications/notifications-jobs.module';
 import { LocationModule } from './modules/location/location.module';
+import { LocationJobsModule } from './modules/location/location-jobs.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { UsersModule } from './modules/users/users.module';
@@ -32,6 +33,7 @@ import { IncidentsJobsModule } from './modules/incidents/incidents-jobs.module';
     NotificationsModule,
     NotificationsJobsModule,
     LocationModule,
+    LocationJobsModule,
     IncidentsModule,
     IncidentsJobsModule,
   ],

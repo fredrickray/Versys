@@ -1,6 +1,7 @@
 import {
   AUTO_ESCALATION_CEILING,
   ESCALATION_TIMERS,
+  type EscalationTimers,
 } from '../../../common/constants/escalation';
 import {
   AlertLevel,
@@ -29,6 +30,8 @@ export type EscalationContext = {
     isAssignedResponder: boolean;
   };
   now: Date;
+  /** Optional timer overrides (drills / staging). Defaults to ESCALATION_TIMERS. */
+  timers?: EscalationTimers;
 };
 
 export type TransitionResult =
@@ -69,6 +72,8 @@ export function evaluateTransition(
   action: EscalationAction,
   ctx: EscalationContext,
 ): TransitionResult {
+  const timers = ctx.timers ?? ESCALATION_TIMERS;
+
   if (ctx.status === IncidentStatus.RESOLVED) {
     return { ok: false, reason: 'incident_already_resolved' };
   }
@@ -79,7 +84,7 @@ export function evaluateTransition(
         return { ok: false, reason: 'no_active_assignment' };
       }
       const age = msSince(ctx.assignedAt, ctx.now);
-      if (age == null || age < ESCALATION_TIMERS.PROMPT_AFTER_MS) {
+      if (age == null || age < timers.PROMPT_AFTER_MS) {
         return { ok: false, reason: 'prompt_not_due' };
       }
       if (ctx.promptIssuedAt) {
@@ -116,7 +121,7 @@ export function evaluateTransition(
         return { ok: false, reason: 'no_assignment_clock' };
       }
       const age = msSince(ctx.assignedAt, ctx.now);
-      if (age == null || age < ESCALATION_TIMERS.DISPATCHER_RESOLVE_AFTER_MS) {
+      if (age == null || age < timers.DISPATCHER_RESOLVE_AFTER_MS) {
         return { ok: false, reason: 'dispatcher_resolve_too_early' };
       }
       return { ok: true, nextStatus: IncidentStatus.RESOLVED };
@@ -150,7 +155,7 @@ export function evaluateTransition(
       const sincePrompt = msSince(ctx.promptIssuedAt, ctx.now);
       if (
         sincePrompt == null ||
-        sincePrompt < ESCALATION_TIMERS.AUTO_ESCALATE_AFTER_PROMPT_MS
+        sincePrompt < timers.AUTO_ESCALATE_AFTER_PROMPT_MS
       ) {
         return { ok: false, reason: 'auto_escalate_not_due' };
       }

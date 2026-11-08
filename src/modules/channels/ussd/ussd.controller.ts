@@ -1,5 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { IsOptional, IsString, Matches } from 'class-validator';
+import { WebhookRateLimitGuard } from '../../../common/guards/webhook-rate-limit.guard';
+import { WebhookSecretGuard } from '../../../common/guards/webhook-secret.guard';
 import { UssdService } from './ussd.service';
 
 class UssdWebhookDto {
@@ -20,8 +22,8 @@ class UssdWebhookDto {
   networkCode?: string;
 }
 
-/** Aggregator USSD webhook — public, no JWT (secured by network allowlist later). */
 @Controller('channels/ussd')
+@UseGuards(WebhookSecretGuard, WebhookRateLimitGuard)
 export class UssdController {
   constructor(private readonly ussd: UssdService) {}
 
