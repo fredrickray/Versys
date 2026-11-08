@@ -28,9 +28,15 @@ Auth OTP, incident create, nearest-staff notify, accept/reject, Socket.IO live v
 
 **Gate:** User raises alert → nearest Level 1 notified → one accepts → dispatcher sees it live.
 
-## Phase 2 — Escalation and communication
+## Phase 2 — Escalation and communication *(backend implemented — confirm gate)*
 
 Escalation timers + reconciler, resolve rules, audit log, announcements, SMS fallback, alarm/vibration payload, intervention map APIs.
+
+- [x] BullMQ prompt (5m) → auto-escalate (10m) + minute reconciler
+- [x] Manual escalate / resolve / Level-4 phone log APIs
+- [x] Announcements with category targeting
+- [x] FCM alarm/vibrate payload + SMS fallback if no ack
+- [x] Intervention map for CAT2/3 + dispatcher
 
 **Gate:** Auto-escalation through levels in a timed test; targeted announcements deliver.
 

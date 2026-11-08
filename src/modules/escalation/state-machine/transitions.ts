@@ -23,7 +23,7 @@ export type EscalationContext = {
   assignedAt: Date | null;
   promptIssuedAt: Date | null;
   actor: {
-    staffCategory: StaffCategory | null;
+    staffCategory: StaffCategory | number | null;
     isDispatcher: boolean;
     /** True when the actor holds an active accepted assignment on this incident */
     isAssignedResponder: boolean;
