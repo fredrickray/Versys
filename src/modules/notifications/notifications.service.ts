@@ -143,6 +143,7 @@ export class NotificationsService {
       toE164: user.phoneE164,
       body: `VERSYS: ${title} — ${body}`.slice(0, 160),
       correlationId: attempt.id,
+      purpose: 'alert',
     });
 
     attempt.status = result.ok ? 'fallback_sms' : 'failed';

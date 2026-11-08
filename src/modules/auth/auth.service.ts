@@ -11,6 +11,7 @@ import { randomInt } from 'crypto';
 import { AuditAction } from '../../common/enums';
 import { RedisService } from '../../redis/redis.service';
 import { AuditService } from '../audit/audit.service';
+import { ChannelsService } from '../channels/channels.service';
 import { RbacService } from '../rbac/rbac.service';
 import { UsersService } from '../users/users.service';
 import type { JwtPayload } from './strategies/jwt.strategy';
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly channels: ChannelsService,
   ) {}
 
   async requestOtp(phoneE164: string): Promise<{ expiresInSeconds: number }> {
@@ -42,7 +44,24 @@ export class AuthService {
     await this.redis.client.set(`otp:${phoneE164}`, code, 'EX', ttl);
     await this.redis.client.set(throttleKey, '1', 'EX', 30);
 
-    // Phase 1: log in non-prod; SMS provider wires in Phase 2
+    const sms = await this.channels.sendSms({
+      toE164: phoneE164,
+      body: `VERSYS code: ${code}. Expires in ${Math.ceil(ttl / 60)} min. Do not share.`,
+      purpose: 'otp',
+      correlationId: `otp:${phoneE164}`,
+    });
+
+    if (!sms.ok) {
+      this.logger.warn(
+        `OTP SMS failed for ${phoneE164}: ${sms.error ?? 'unknown'}`,
+      );
+      // Fail closed when a live provider is configured so clients don't assume delivery
+      if (this.config.get<string>('smsProvider') !== 'mock') {
+        throw new HttpException('otp_sms_failed', HttpStatus.BAD_GATEWAY);
+      }
+    }
+
+    // Dev/test convenience — never log OTP in production
     if (this.config.get<string>('nodeEnv') !== 'production') {
       this.logger.log(`OTP for ${phoneE164}: ${code}`);
     }

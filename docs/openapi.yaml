@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: VERSYS API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Veritas Emergency Response System — REST contract for mobile/web clients.
     Base path `/v1`. Bearer JWT after OTP verify.
@@ -72,9 +72,11 @@ paths:
                 phoneE164: { type: string, example: "+2348012345678" }
       responses:
         "202":
-          description: OTP dispatched (or mocked in non-prod)
+          description: OTP dispatched (Termii or mock)
         "429":
           description: Rate limited
+        "502":
+          description: Live SMS provider failed to send OTP
   /auth/otp/verify:
     post:
       tags: [Auth]
