@@ -17,7 +17,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json",
     "start:api": "nest start --entryFile main.api",
     "start:api:dev": "nest start --watch --entryFile main.api",
     "start:realtime": "nest start --entryFile main.realtime",
@@ -31,7 +31,12 @@
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
     "migration:generate": "npm run typeorm -- migration:generate -d src/database/data-source.ts",
-    "check:boundaries": "node scripts/check-boundaries.mjs"
+    "seed": "ts-node -r tsconfig-paths/register src/database/seeds/run-seeds.ts",
+    "seed:prod": "node dist/database/seeds/run-seeds.js",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "docker:up": "docker compose up -d",
+    "docker:app": "docker compose --profile app up -d --build",
+    "docker:down": "docker compose --profile app down"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",

@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
   title: VERSYS API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Veritas Emergency Response System — Phase 0 contract.
-    Agreed before Phase 1 implementation. Breaking changes require a version bump.
+    Veritas Emergency Response System — REST contract for mobile/web clients.
+    Base path `/v1`. Bearer JWT after OTP verify.
 servers:
   - url: http://localhost:3000/v1
     description: Local API
 tags:
   - name: Health
+  - name: Ops
   - name: Auth
   - name: Incidents
   - name: Assignments
@@ -17,7 +18,10 @@ tags:
   - name: Dispatch
   - name: Location
   - name: Announcements
+  - name: Notifications
   - name: Analytics
+  - name: Audit
+  - name: Places
   - name: Channels
   - name: RBAC
 paths:
@@ -27,7 +31,7 @@ paths:
       summary: Liveness probe
       responses:
         "200":
-          description: Process is up
+          description: Process is up (includes eventMode / maintenanceMode flags)
   /ready:
     get:
       tags: [Health]
@@ -37,10 +41,18 @@ paths:
           description: Dependencies reachable
         "503":
           description: Dependency down
+  /ops/status:
+    get:
+      tags: [Ops]
+      summary: Tech-desk snapshot (event freeze posture)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Ops desk status
   /rbac/matrix:
     get:
       tags: [RBAC]
-      summary: Permission matrix (Phase 0 reference)
+      summary: Permission matrix reference
       responses:
         "200":
           description: Staff and dispatcher permission sets
@@ -59,7 +71,9 @@ paths:
                 phoneE164: { type: string, example: "+2348012345678" }
       responses:
         "202":
-          description: OTP dispatched (or mocked)
+          description: OTP dispatched (or mocked in non-prod)
+        "429":
+          description: Rate limited
   /auth/otp/verify:
     post:
       tags: [Auth]
@@ -75,8 +89,18 @@ paths:
                 phoneE164: { type: string }
                 code: { type: string }
       responses:
-        "200":
+        "201":
           description: Access + refresh tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+                  expiresIn: { type: string }
+        "401":
+          description: Invalid OTP
   /incidents:
     post:
       tags: [Incidents]
@@ -95,9 +119,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Incident"
+        "429":
+          description: Alert rate limited
     get:
       tags: [Incidents]
-      summary: List incidents (role-scoped)
+      summary: List incidents
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
@@ -107,6 +133,33 @@ paths:
       responses:
         "200":
           description: Incident list
+  /incidents/offline:
+    post:
+      tags: [Incidents]
+      summary: Flush offline-queued alert (idempotent by clientEventId)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientEventId, type, channel]
+              properties:
+                clientEventId: { type: string }
+                type: { $ref: "#/components/schemas/IncidentType" }
+                channel:
+                  type: string
+                  enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd]
+                latitude: { type: number }
+                longitude: { type: number }
+                placeId: { type: string, format: uuid }
+                locationLabel: { type: string }
+                capturedAt: { type: string, format: date-time }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        "202":
+          description: Accepted for processing
   /incidents/{incidentId}:
     get:
       tags: [Incidents]
@@ -146,7 +199,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AssignmentId"
       responses:
-        "200":
+        "201":
           description: Accepted
   /assignments/{assignmentId}/reject:
     post:
@@ -168,7 +221,7 @@ paths:
                   enum: [currently_busy, too_far, other]
                 note: { type: string, maxLength: 240 }
       responses:
-        "200":
+        "201":
           description: Rejected
   /incidents/{incidentId}/escalate:
     post:
@@ -178,7 +231,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/IncidentId"
       responses:
-        "200":
+        "201":
           description: Escalated
   /incidents/{incidentId}/resolve:
     post:
@@ -195,7 +248,7 @@ paths:
               properties:
                 final: { type: boolean, default: false }
       responses:
-        "200":
+        "201":
           description: Updated
   /incidents/{incidentId}/level4:
     post:
@@ -217,6 +270,16 @@ paths:
       responses:
         "201":
           description: Level-4 call logged
+  /incidents/{incidentId}/intervention-map:
+    get:
+      tags: [Location]
+      summary: Live intervention map points for an incident
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: Map payload
   /location/ping:
     post:
       tags: [Location]
@@ -239,17 +302,215 @@ paths:
       responses:
         "202":
           description: Accepted
+  /notifications/{attemptId}/ack:
+    post:
+      tags: [Notifications]
+      summary: Ack push delivery (cancels SMS fallback)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: attemptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Acknowledged
+  /announcements:
+    get:
+      tags: [Announcements]
+      summary: List announcements for current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Announcement list
+    post:
+      tags: [Announcements]
+      summary: Create targeted announcement
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, body]
+              properties:
+                title: { type: string }
+                body: { type: string }
+                targetCategories:
+                  type: array
+                  items: { type: string }
+                blinkingBlue: { type: boolean }
+      responses:
+        "201":
+          description: Created
+  /dispatch/board:
+    get:
+      tags: [Dispatch]
+      summary: Open incidents board
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/IncidentStatus" }
+        - in: query
+          name: alertLevel
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Board rows
+  /dispatch/staff:
+    get:
+      tags: [Dispatch]
+      summary: Assignable staff roster
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Staff list
+  /dispatch/incidents/{incidentId}:
+    get:
+      tags: [Dispatch]
+      summary: Incident detail with assignments
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: Detail
+  /dispatch/incidents/{incidentId}/assign:
+    post:
+      tags: [Dispatch]
+      summary: Dispatcher assigns staff
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assigneeUserId]
+              properties:
+                assigneeUserId: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Assignment created
+  /analytics/summary:
+    get:
+      tags: [Analytics]
+      summary: Aggregate response-time / volume summary
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: Summary
+  /analytics/incidents/{incidentId}:
+    get:
+      tags: [Analytics]
+      summary: Per-incident route / response insights
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: Insights
+  /audit/false-alarms:
+    get:
+      tags: [Audit]
+      summary: Candidate false-alarm incidents
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: hours
+          schema: { type: integer, minimum: 1, maximum: 168 }
+      responses:
+        "200":
+          description: Candidates
+  /audit/false-alarms/{incidentId}/flag:
+    post:
+      tags: [Audit]
+      summary: Flag incident as false alarm
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 500 }
+      responses:
+        "201":
+          description: Flagged
+  /places/muster:
+    get:
+      tags: [Places]
+      summary: Muster points
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Places
+  /places/external-contacts:
+    get:
+      tags: [Places]
+      summary: Level-4 agency contacts
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Contacts
   /channels/sms/inbound:
     post:
       tags: [Channels]
       summary: Aggregator inbound SMS webhook
+      parameters:
+        - in: header
+          name: x-versys-webhook-secret
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromE164, body]
+              properties:
+                fromE164: { type: string }
+                body: { type: string }
+                providerMessageId: { type: string }
       responses:
         "200":
-          description: Parsed and registered (or rejected)
+          description: Parsed and registered (or help SMS sent)
   /channels/ussd/session:
     post:
       tags: [Channels]
       summary: Aggregator USSD session webhook
+      parameters:
+        - in: header
+          name: x-versys-webhook-secret
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneE164]
+              properties:
+                sessionId: { type: string }
+                phoneE164: { type: string }
+                text: { type: string }
+                networkCode: { type: string }
       responses:
         "200":
           description: Menu / end response

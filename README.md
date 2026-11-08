@@ -18,13 +18,25 @@ NestJS monorepo root: REST API, realtime, and BullMQ worker.
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose up -d          # postgres + redis (+ mailpit)
 npm install
 npm run migration:run
+npm run seed                  # roles, places, contacts, demo users
 npm run start:api:dev
 ```
 
+Full stack in Docker (migrate → seed → api / realtime / worker):
+
+```bash
+docker compose --profile app up -d --build
+# or: npm run docker:app
+```
+
+Demo phones (OTP logged in non-prod): `+2348010000001` reporter · `+2348010000002` sheriff · `+2348010000003` dispatcher.
+
 Health: `GET /v1/health` · Ready: `GET /v1/ready` · Swagger: `/docs` · Contract: `docs/openapi.yaml`
+
+E2E (needs Postgres + Redis): `npm run test:e2e`
 
 Delivery plan: see `PHASES.md`.
 
