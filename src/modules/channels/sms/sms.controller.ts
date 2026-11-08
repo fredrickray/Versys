@@ -1,6 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { IsOptional, IsString, Matches } from 'class-validator';
 import { IncidentChannel } from '../../../common/enums';
+import { WebhookRateLimitGuard } from '../../../common/guards/webhook-rate-limit.guard';
+import { WebhookSecretGuard } from '../../../common/guards/webhook-secret.guard';
 import { IncidentsService } from '../../incidents/incidents.service';
 import { PlacesService } from '../../places/places.service';
 import { ChannelsService } from '../channels.service';
@@ -20,6 +22,7 @@ class InboundSmsDto {
 }
 
 @Controller('channels/sms')
+@UseGuards(WebhookSecretGuard, WebhookRateLimitGuard)
 export class SmsController {
   constructor(
     private readonly incidents: IncidentsService,
@@ -33,7 +36,7 @@ export class SmsController {
     if (!parsed) {
       await this.channels.sendSms({
         toE164: dto.fromE164,
-        body: 'VERSYS: send TYPE PLACE e.g. FIRE HOSTEL_A or MED HALL',
+        body: 'VERSYS: send TYPE PLACE e.g. FIRE HOSTEL_A or MED MED',
       });
       return { ok: false, reason: 'unparseable' };
     }

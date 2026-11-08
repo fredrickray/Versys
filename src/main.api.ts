@@ -33,13 +33,20 @@ async function bootstrap() {
     new LoggingInterceptor(),
   );
 
-  const swagger = new DocumentBuilder()
-    .setTitle('VERSYS API')
-    .setDescription('Veritas Emergency Response System — REST contract')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swagger));
+  const nodeEnv = config.get<string>('nodeEnv') ?? 'development';
+  if (nodeEnv !== 'production') {
+    const swagger = new DocumentBuilder()
+      .setTitle('VERSYS API')
+      .setDescription('Veritas Emergency Response System — REST contract')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup(
+      'docs',
+      app,
+      SwaggerModule.createDocument(app, swagger),
+    );
+  }
 
   const port = config.getOrThrow<number>('apiPort');
   await app.listen(port);

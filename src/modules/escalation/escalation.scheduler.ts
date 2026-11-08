@@ -1,21 +1,43 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
-import { ESCALATION_TIMERS } from '../../common/constants/escalation';
+import {
+  resolveEscalationTimers,
+  type EscalationTimers,
+} from '../../common/constants/escalation';
 import { QueueName } from '../../queues/queue-names';
 
 @Injectable()
 export class EscalationScheduler {
   private readonly logger = new Logger(EscalationScheduler.name);
+  private readonly timers: EscalationTimers;
 
   constructor(
     @InjectQueue(QueueName.ESCALATION) private readonly queue: Queue,
-  ) {}
+    config: ConfigService,
+  ) {
+    const overrides =
+      config.get<Partial<EscalationTimers>>('escalationTimers') ?? {};
+    this.timers = resolveEscalationTimers({
+      PROMPT_AFTER_MS: overrides.PROMPT_AFTER_MS,
+      AUTO_ESCALATE_AFTER_PROMPT_MS: overrides.AUTO_ESCALATE_AFTER_PROMPT_MS,
+      DISPATCHER_RESOLVE_AFTER_MS: overrides.DISPATCHER_RESOLVE_AFTER_MS,
+      RECONCILER_INTERVAL_MS: overrides.RECONCILER_INTERVAL_MS,
+    });
+    this.logger.log(
+      `Escalation timers prompt=${this.timers.PROMPT_AFTER_MS}ms auto=${this.timers.AUTO_ESCALATE_AFTER_PROMPT_MS}ms`,
+    );
+  }
+
+  getTimers(): EscalationTimers {
+    return this.timers;
+  }
 
   async registerReconciler(): Promise<void> {
     await this.queue.upsertJobScheduler(
       'escalation-reconciler',
-      { every: ESCALATION_TIMERS.RECONCILER_INTERVAL_MS },
+      { every: this.timers.RECONCILER_INTERVAL_MS },
       {
         name: 'reconcile',
         data: {},
@@ -34,7 +56,7 @@ export class EscalationScheduler {
       { incidentId, assignmentId },
       {
         jobId: `prompt:${incidentId}`,
-        delay: ESCALATION_TIMERS.PROMPT_AFTER_MS,
+        delay: this.timers.PROMPT_AFTER_MS,
         removeOnComplete: true,
       },
     );
@@ -46,7 +68,7 @@ export class EscalationScheduler {
       { incidentId },
       {
         jobId: `auto:${incidentId}`,
-        delay: ESCALATION_TIMERS.AUTO_ESCALATE_AFTER_PROMPT_MS,
+        delay: this.timers.AUTO_ESCALATE_AFTER_PROMPT_MS,
         removeOnComplete: true,
       },
     );

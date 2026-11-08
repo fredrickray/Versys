@@ -42,6 +42,24 @@ export default () => {
       .filter(Boolean),
     locationRetentionDays: Number(env.LOCATION_RETENTION_DAYS ?? 30),
     rateLimitAlertsPerHour: Number(env.RATE_LIMIT_ALERTS_PER_HOUR ?? 10),
+    rateLimitWebhooksPerMinute: Number(
+      env.RATE_LIMIT_WEBHOOKS_PER_MINUTE ?? 60,
+    ),
+    channelWebhookSecret: env.CHANNEL_WEBHOOK_SECRET || '',
+    escalationTimers: {
+      PROMPT_AFTER_MS: env.ESCALATION_PROMPT_AFTER_MS
+        ? Number(env.ESCALATION_PROMPT_AFTER_MS)
+        : undefined,
+      AUTO_ESCALATE_AFTER_PROMPT_MS: env.ESCALATION_AUTO_AFTER_PROMPT_MS
+        ? Number(env.ESCALATION_AUTO_AFTER_PROMPT_MS)
+        : undefined,
+      DISPATCHER_RESOLVE_AFTER_MS: env.ESCALATION_DISPATCHER_RESOLVE_AFTER_MS
+        ? Number(env.ESCALATION_DISPATCHER_RESOLVE_AFTER_MS)
+        : undefined,
+      RECONCILER_INTERVAL_MS: env.ESCALATION_RECONCILER_INTERVAL_MS
+        ? Number(env.ESCALATION_RECONCILER_INTERVAL_MS)
+        : undefined,
+    },
   };
 };
 
