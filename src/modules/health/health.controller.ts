@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   HealthCheck,
   HealthCheckService,
@@ -12,11 +13,16 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly db: TypeOrmHealthIndicator,
     private readonly redis: RedisService,
+    private readonly config: ConfigService,
   ) {}
 
   @Get('health')
   liveness() {
-    return { status: 'ok' };
+    return {
+      status: 'ok',
+      eventMode: this.config.get<boolean>('eventMode') === true,
+      maintenanceMode: this.config.get<boolean>('maintenanceMode') === true,
+    };
   }
 
   @Get('ready')

@@ -35,3 +35,14 @@ Delivery plan: see `PHASES.md`.
 3. Escalation logic stays pure in `state-machine/transitions.ts`; services own side effects.
 4. `audit_logs` is append-only (DB trigger + application discipline).
 5. Location history only during incidents or duty shifts (NDPA).
+
+## Event freeze (Phase 5)
+
+```bash
+EVENT_MODE=true
+EVENT_NAME="African Debating Championship 2026"
+MAINTENANCE_MODE=false   # keep false during the live event
+```
+
+Ops snapshot: `GET /v1/ops/status` (JWT). Runbooks: `docs/runbooks/on-call-desk.md`, `paper-radio-protocol.md`.
+

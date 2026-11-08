@@ -65,8 +65,14 @@ Load tests (k6), security review, backup restore, store submission, escalation e
 
 **Gate:** Two live drills pass; fallback ladder tested under degraded network.
 
-## Phase 5 — Freeze and event support
+## Phase 5 — Freeze and event support *(backend ready on feat/event-freeze)*
 
 No new features. On-site desk. Paper/radio protocol ready.
 
-**Gate:** Stable under expected event load.
+- [x] `EVENT_MODE` / `MAINTENANCE_MODE` config + startup banners
+- [x] Maintenance middleware (503 except health/ready) for planned failover only
+- [x] Tech-desk `GET /v1/ops/status` (+ health flags)
+- [x] On-call desk, paper/radio protocol, event load profile docs
+- [ ] Live event staffing & printed packs (ops)
+
+**Gate:** Stable under expected event load; paper/radio protocol understood.

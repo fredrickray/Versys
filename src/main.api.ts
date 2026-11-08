@@ -48,6 +48,15 @@ async function bootstrap() {
     );
   }
 
+  if (config.get<boolean>('eventMode')) {
+    logger.warn(
+      `EVENT_MODE active${config.get<string>('eventName') ? ` — ${config.get<string>('eventName')}` : ''} — feature freeze; hotfixes only`,
+    );
+  }
+  if (config.get<boolean>('maintenanceMode')) {
+    logger.error('MAINTENANCE_MODE active — non-health routes return 503');
+  }
+
   const port = config.getOrThrow<number>('apiPort');
   await app.listen(port);
   logger.log(`API listening on :${port}`);
