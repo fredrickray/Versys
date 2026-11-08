@@ -4,6 +4,17 @@ import { Repository } from 'typeorm';
 import { ExternalContactEntity } from './entities/external-contact.entity';
 import { PlaceEntity } from './entities/place.entity';
 
+export const USSD_LOCATION_GROUPS: ReadonlyArray<{
+  key: string;
+  label: string;
+  ussdNumber: number;
+}> = [
+  { key: 'hostels', label: 'Hostels', ussdNumber: 1 },
+  { key: 'faculties', label: 'Faculties', ussdNumber: 2 },
+  { key: 'halls_and_chapel', label: 'Halls & Chapel', ussdNumber: 3 },
+  { key: 'sports_and_gate', label: 'Sports & Gate', ussdNumber: 4 },
+];
+
 @Injectable()
 export class PlacesService {
   constructor(
@@ -15,6 +26,26 @@ export class PlacesService {
 
   findPlaceById(id: string): Promise<PlaceEntity | null> {
     return this.places.findOne({ where: { id, isActive: true } });
+  }
+
+  findByCode(code: string): Promise<PlaceEntity | null> {
+    return this.places.findOne({ where: { code, isActive: true } });
+  }
+
+  listByGroup(groupKey: string): Promise<PlaceEntity[]> {
+    return this.places.find({
+      where: { groupKey, isActive: true },
+      order: { ussdNumber: 'ASC' },
+    });
+  }
+
+  findByGroupAndUssdNumber(
+    groupKey: string,
+    ussdNumber: number,
+  ): Promise<PlaceEntity | null> {
+    return this.places.findOne({
+      where: { groupKey, ussdNumber, isActive: true },
+    });
   }
 
   listMusterPoints(): Promise<PlaceEntity[]> {

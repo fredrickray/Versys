@@ -40,9 +40,14 @@ Escalation timers + reconciler, resolve rules, audit log, announcements, SMS fal
 
 **Gate:** Auto-escalation through levels in a timed test; targeted announcements deliver.
 
-## Phase 3 — Dispatch and insights
+## Phase 3 — Dispatch and insights *(backend implemented on feat/dispatch-insights — confirm gate)*
 
 Dispatcher assignment UX APIs, analytics (response time, route), USSD live, offline queue support.
+
+- [x] Dispatch board / assign / staff roster
+- [x] Analytics summary + per-incident route/response time
+- [x] USSD session webhook + SMS inbound parser
+- [x] Offline alert flush queue (idempotent)
 
 **Gate:** Dispatcher runs a full incident from dashboard; USSD raises an alert end-to-end.
 

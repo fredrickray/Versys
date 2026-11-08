@@ -27,6 +27,7 @@ import { QueueName } from './queue-names';
       { name: QueueName.NOTIFICATIONS },
       { name: QueueName.LOCATION_RETENTION },
       { name: QueueName.ANALYTICS },
+      { name: QueueName.OFFLINE_ALERTS },
     ),
   ],
   exports: [BullModule],

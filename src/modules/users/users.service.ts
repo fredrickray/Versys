@@ -47,4 +47,15 @@ export class UsersService {
   findActiveDispatchers(): Promise<UserEntity[]> {
     return this.users.find({ where: { isDispatcher: true, isActive: true } });
   }
+
+  /** Staff with a category — for dispatcher assignment pickers. */
+  listAssignableStaff(): Promise<UserEntity[]> {
+    return this.users
+      .createQueryBuilder('u')
+      .where('u.is_active = true')
+      .andWhere('u.staff_category IS NOT NULL')
+      .orderBy('u.staff_category', 'ASC')
+      .addOrderBy('u.full_name', 'ASC')
+      .getMany();
+  }
 }

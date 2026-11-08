@@ -13,6 +13,8 @@ import { AuditModule } from './modules/audit/audit.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { UsersModule } from './modules/users/users.module';
 import { PlacesModule } from './modules/places/places.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
+import { IncidentsJobsModule } from './modules/incidents/incidents-jobs.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { PlacesModule } from './modules/places/places.module';
     NotificationsModule,
     NotificationsJobsModule,
     LocationModule,
+    IncidentsModule,
+    IncidentsJobsModule,
   ],
 })
 export class WorkerModule {}
