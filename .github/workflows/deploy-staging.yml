@@ -1,0 +1,8 @@
+name: deploy-staging
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Wire to your staging host / container registry in Phase 0 exit hardening"

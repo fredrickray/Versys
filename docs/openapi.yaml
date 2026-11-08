@@ -1,0 +1,308 @@
+openapi: 3.1.0
+info:
+  title: VERSYS API
+  version: 0.1.0
+  description: |
+    Veritas Emergency Response System — Phase 0 contract.
+    Agreed before Phase 1 implementation. Breaking changes require a version bump.
+servers:
+  - url: http://localhost:3000/v1
+    description: Local API
+tags:
+  - name: Health
+  - name: Auth
+  - name: Incidents
+  - name: Assignments
+  - name: Escalation
+  - name: Dispatch
+  - name: Location
+  - name: Announcements
+  - name: Analytics
+  - name: Channels
+  - name: RBAC
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Process is up
+  /ready:
+    get:
+      tags: [Health]
+      summary: Readiness (DB + Redis)
+      responses:
+        "200":
+          description: Dependencies reachable
+        "503":
+          description: Dependency down
+  /rbac/matrix:
+    get:
+      tags: [RBAC]
+      summary: Permission matrix (Phase 0 reference)
+      responses:
+        "200":
+          description: Staff and dispatcher permission sets
+  /auth/otp/request:
+    post:
+      tags: [Auth]
+      summary: Request phone OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneE164]
+              properties:
+                phoneE164: { type: string, example: "+2348012345678" }
+      responses:
+        "202":
+          description: OTP dispatched (or mocked)
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and issue tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneE164, code]
+              properties:
+                phoneE164: { type: string }
+                code: { type: string }
+      responses:
+        "200":
+          description: Access + refresh tokens
+  /incidents:
+    post:
+      tags: [Incidents]
+      summary: Create incident (app / SOS / dispatcher-logged)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIncidentRequest"
+      responses:
+        "201":
+          description: Incident registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+    get:
+      tags: [Incidents]
+      summary: List incidents (role-scoped)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/IncidentStatus"
+      responses:
+        "200":
+          description: Incident list
+  /incidents/{incidentId}:
+    get:
+      tags: [Incidents]
+      summary: Get incident
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: Incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+  /incidents/{incidentId}/assignments:
+    post:
+      tags: [Assignments]
+      summary: Assign or self-accept intervention
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assigneeUserId: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Assignment created/accepted
+  /assignments/{assignmentId}/accept:
+    post:
+      tags: [Assignments]
+      summary: Accept assignment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AssignmentId"
+      responses:
+        "200":
+          description: Accepted
+  /assignments/{assignmentId}/reject:
+    post:
+      tags: [Assignments]
+      summary: Reject with reason (audited)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AssignmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [currently_busy, too_far, other]
+                note: { type: string, maxLength: 240 }
+      responses:
+        "200":
+          description: Rejected
+  /incidents/{incidentId}/escalate:
+    post:
+      tags: [Escalation]
+      summary: Manual escalate
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: Escalated
+  /incidents/{incidentId}/resolve:
+    post:
+      tags: [Escalation]
+      summary: Confirm / final-close incident
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                final: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Updated
+  /incidents/{incidentId}/level4:
+    post:
+      tags: [Escalation]
+      summary: Record Level-4 external phone escalation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalContactId]
+              properties:
+                externalContactId: { type: string, format: uuid }
+                note: { type: string }
+      responses:
+        "201":
+          description: Level-4 call logged
+  /location/ping:
+    post:
+      tags: [Location]
+      summary: Ingest location ping (incident or on-duty only)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [latitude, longitude, recordedAt]
+              properties:
+                latitude: { type: number }
+                longitude: { type: number }
+                accuracyMetres: { type: number }
+                incidentId: { type: string, format: uuid }
+                onDuty: { type: boolean }
+                recordedAt: { type: string, format: date-time }
+      responses:
+        "202":
+          description: Accepted
+  /channels/sms/inbound:
+    post:
+      tags: [Channels]
+      summary: Aggregator inbound SMS webhook
+      responses:
+        "200":
+          description: Parsed and registered (or rejected)
+  /channels/ussd/session:
+    post:
+      tags: [Channels]
+      summary: Aggregator USSD session webhook
+      responses:
+        "200":
+          description: Menu / end response
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IncidentId:
+      name: incidentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AssignmentId:
+      name: assignmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    IncidentStatus:
+      type: string
+      enum: [reported, intervention_ongoing, resolved]
+    IncidentType:
+      type: string
+      enum: [fire, fight, ongoing_crime, suspicious_movement, accident, invasion, violent_attack]
+    AlertLevel:
+      type: integer
+      enum: [1, 2, 3, 4]
+    CreateIncidentRequest:
+      type: object
+      required: [type, channel]
+      properties:
+        type: { $ref: "#/components/schemas/IncidentType" }
+        channel:
+          type: string
+          enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd]
+        latitude: { type: number }
+        longitude: { type: number }
+        placeId: { type: string, format: uuid }
+        locationLabel: { type: string }
+        metadata: { type: object, additionalProperties: true }
+    Incident:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        publicCode: { type: string }
+        type: { $ref: "#/components/schemas/IncidentType" }
+        status: { $ref: "#/components/schemas/IncidentStatus" }
+        alertLevel: { $ref: "#/components/schemas/AlertLevel" }
+        channel: { type: string }
+        locationLabel: { type: string, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        createdAt: { type: string, format: date-time }

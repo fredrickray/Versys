@@ -1,0 +1,9 @@
+name: deploy-prod
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo "Manual approval gate via GitHub Environment — implement deploy target later"

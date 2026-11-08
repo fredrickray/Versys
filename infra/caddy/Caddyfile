@@ -1,0 +1,18 @@
+:8080 {
+  encode gzip
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy no-referrer
+  }
+
+  # Edge rate limit placeholder — tune per environment
+  handle_path /v1/* {
+    reverse_proxy api:3000
+  }
+
+  handle_path /realtime/* {
+    reverse_proxy realtime:3001
+  }
+
+  respond /health 200
+}

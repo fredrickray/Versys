@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: versys-postgres
+    environment:
+      POSTGRES_USER: versys
+      POSTGRES_PASSWORD: versys
+      POSTGRES_DB: versys
+    ports:
+      - "5432:5432"
+    volumes:
+      - versys_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U versys -d versys"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: versys-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Local SMS/USSD webhook sink — swap for aggregator in staging
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: versys-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  versys_pg:
