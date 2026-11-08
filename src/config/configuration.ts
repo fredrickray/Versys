@@ -60,6 +60,13 @@ export default () => {
         ? Number(env.ESCALATION_RECONCILER_INTERVAL_MS)
         : undefined,
     },
+    eventMode: String(env.EVENT_MODE) === 'true' || env.EVENT_MODE === true,
+    eventName: env.EVENT_NAME || '',
+    maintenanceMode:
+      String(env.MAINTENANCE_MODE) === 'true' || env.MAINTENANCE_MODE === true,
+    maintenanceMessage:
+      env.MAINTENANCE_MESSAGE ||
+      'VERSYS under maintenance — use radio / dispatcher hotline',
   };
 };
 

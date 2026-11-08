@@ -72,6 +72,15 @@ export const envSchema = z.object({
     .int()
     .positive()
     .optional(),
+
+  /** Championship / live-event posture — banners + ops status only; does not block alerts. */
+  EVENT_MODE: bool.default(false),
+  EVENT_NAME: z.string().default(''),
+  /** Planned outage only — 503 everything except /health and /ready. */
+  MAINTENANCE_MODE: bool.default(false),
+  MAINTENANCE_MESSAGE: z
+    .string()
+    .default('VERSYS under maintenance — use radio / dispatcher hotline'),
 });
 
 export type Env = z.infer<typeof envSchema>;
