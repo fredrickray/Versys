@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuditModule } from '../audit/audit.module';
+import { ChannelsModule } from '../channels/channels.module';
 import { RbacModule } from '../rbac/rbac.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
@@ -14,6 +15,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     UsersModule,
     RbacModule,
     AuditModule,
+    ChannelsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
