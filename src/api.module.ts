@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 import { QueuesModule } from './queues/queues.module';
+import { MaintenanceMiddleware } from './common/middleware/maintenance.middleware';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -20,6 +21,7 @@ import { ChannelsModule } from './modules/channels/channels.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlacesModule } from './modules/places/places.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { OpsModule } from './modules/ops/ops.module';
 
 @Module({
   imports: [
@@ -43,9 +45,13 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
     ChannelsModule,
     AnalyticsModule,
     PlacesModule,
-    // API process also hosts Socket.IO so one deploy can demo the core loop;
-    // dedicated realtime process remains available for scale-out.
     RealtimeModule,
+    OpsModule,
   ],
+  providers: [MaintenanceMiddleware],
 })
-export class ApiModule {}
+export class ApiModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(MaintenanceMiddleware).forRoutes('*');
+  }
+}
