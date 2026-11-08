@@ -1,23 +1,40 @@
 import { AlertLevel } from '../enums';
 
+export type EscalationTimers = {
+  PROMPT_AFTER_MS: number;
+  AUTO_ESCALATE_AFTER_PROMPT_MS: number;
+  DISPATCHER_RESOLVE_AFTER_MS: number;
+  RECONCILER_INTERVAL_MS: number;
+};
+
 /**
- * Escalation timer policy (spec §5.3).
- * Durations are milliseconds so BullMQ delay APIs consume them directly.
- *
- * Confirmed assumption (open decision #4 until client signs off):
- * the 10-minute auto-escalate window starts when the 5-minute prompt is issued,
- * not when the responder dismisses it.
+ * Default escalation timer policy (spec §5.3).
+ * Staging/drills may override via env — see resolveEscalationTimers().
  */
-export const ESCALATION_TIMERS = {
-  /** After assignment accepted → prompt "resolved or escalate?" */
+export const ESCALATION_TIMERS: EscalationTimers = {
   PROMPT_AFTER_MS: 5 * 60 * 1000,
-  /** After prompt issued with no answer → auto-escalate */
   AUTO_ESCALATE_AFTER_PROMPT_MS: 10 * 60 * 1000,
-  /** Dispatcher may electronically resolve after this age */
   DISPATCHER_RESOLVE_AFTER_MS: 60 * 60 * 1000,
-  /** Safety-net reconciler cadence */
   RECONCILER_INTERVAL_MS: 60 * 1000,
-} as const;
+};
 
 /** Highest alert level that still auto-escalates. Level 3 freezes. */
 export const AUTO_ESCALATION_CEILING = AlertLevel.HIGH;
+
+export function resolveEscalationTimers(
+  overrides: Partial<EscalationTimers> = {},
+): EscalationTimers {
+  return {
+    PROMPT_AFTER_MS:
+      overrides.PROMPT_AFTER_MS ?? ESCALATION_TIMERS.PROMPT_AFTER_MS,
+    AUTO_ESCALATE_AFTER_PROMPT_MS:
+      overrides.AUTO_ESCALATE_AFTER_PROMPT_MS ??
+      ESCALATION_TIMERS.AUTO_ESCALATE_AFTER_PROMPT_MS,
+    DISPATCHER_RESOLVE_AFTER_MS:
+      overrides.DISPATCHER_RESOLVE_AFTER_MS ??
+      ESCALATION_TIMERS.DISPATCHER_RESOLVE_AFTER_MS,
+    RECONCILER_INTERVAL_MS:
+      overrides.RECONCILER_INTERVAL_MS ??
+      ESCALATION_TIMERS.RECONCILER_INTERVAL_MS,
+  };
+}

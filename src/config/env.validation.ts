@@ -46,6 +46,32 @@ export const envSchema = z.object({
 
   LOCATION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_ALERTS_PER_HOUR: z.coerce.number().int().positive().default(10),
+  RATE_LIMIT_WEBHOOKS_PER_MINUTE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60),
+
+  /** Optional shared secret for SMS/USSD aggregator webhooks (header x-versys-webhook-secret) */
+  CHANNEL_WEBHOOK_SECRET: z.string().optional().default(''),
+
+  /** Drill / staging timer overrides (ms). Empty = production defaults. */
+  ESCALATION_PROMPT_AFTER_MS: z.coerce.number().int().positive().optional(),
+  ESCALATION_AUTO_AFTER_PROMPT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
+  ESCALATION_DISPATCHER_RESOLVE_AFTER_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
+  ESCALATION_RECONCILER_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

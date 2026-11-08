@@ -1,7 +1,25 @@
 # Drill checklist
 
-- [ ] Medical drill: app alert → nearest CAT1 notified → accept → dispatcher live view
-- [ ] Fire drill: Level 2 start → muster guidance → escalate path
-- [ ] Fallback ladder: throttle data → tiny retry → SMS → USSD → dispatcher phone
-- [ ] Escalation timers exercised with shortened staging constants
+## Medical drill
+- [ ] App alert (accident/medical) → nearest CAT1 notified
+- [ ] Responder accepts; dispatcher sees live on board + realtime
+- [ ] Location pings appear on intervention map (CAT2/3)
+- [ ] Resolve path (CAT2 close or confirm → final)
+
+## Fire drill
+- [ ] Fire alert starts at Level 2
+- [ ] Muster guidance / muster points listed
+- [ ] Escalate path exercised (manual or shortened auto timers)
+- [ ] Level-3 freeze verified (no further auto-escalate)
+
+## Fallback ladder
+- [ ] See `degraded-network.md` — all five layers
+
+## Timers (staging)
+- [ ] `ESCALATION_PROMPT_AFTER_MS` / `ESCALATION_AUTO_AFTER_PROMPT_MS` shortened
+- [ ] Reconciler recovers a deliberately dropped delayed job
+
+## Ops
 - [ ] Paper/radio protocol printed and briefed
+- [ ] Backup restore verify run in last 7 days
+- [ ] False-alarm review glance after drill spam

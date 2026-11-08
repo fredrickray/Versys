@@ -51,9 +51,17 @@ Dispatcher assignment UX APIs, analytics (response time, route), USSD live, offl
 
 **Gate:** Dispatcher runs a full incident from dashboard; USSD raises an alert end-to-end.
 
-## Phase 4 — Hardening and drills
+## Phase 4 — Hardening and drills *(backend implemented on feat/hardening — confirm gate)*
 
 Load tests (k6), security review, backup restore, store submission, escalation edge cases.
+
+- [x] Escalation edge-case tests + drill timer env overrides
+- [x] Location retention job (NDPA)
+- [x] Webhook secret + rate limit on SMS/USSD
+- [x] False-alarm review APIs
+- [x] k6 scenarios (health burst, socket probe, USSD)
+- [x] Backup / restore-verify scripts + security & degraded-network runbooks
+- [ ] Live drills on staging (ops) / store submission (mobile track)
 
 **Gate:** Two live drills pass; fallback ladder tested under degraded network.
 
