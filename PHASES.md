@@ -6,10 +6,10 @@ Exit checks are gates — a phase is done when the check passes, not when a date
 
 **Backend exit**
 - [x] Three-process Nest layout (API / realtime / worker)
-- [x] Domain model, migration, seeds
+- [x] Domain model, migration, seeds (+ `npm run seed` runner)
 - [x] Permission matrix + escalation transition table with tests
-- [x] OpenAPI contract draft
-- [x] Local docker-compose + CI
+- [x] OpenAPI contract draft (v0.2 — matches shipped routes)
+- [x] Local docker-compose (infra + `--profile app` for api/realtime/worker) + CI
 - [ ] Front-end blank installs (mobile/web) — parallel track
 - [ ] Telecom short-code application started — Back-end B / ops
 
@@ -24,7 +24,7 @@ Auth OTP, incident create, nearest-staff notify, accept/reject, Socket.IO live v
 - [x] Accept / reject with audited reasons
 - [x] Socket.IO realtime gateway
 - [x] Location ping → Redis GEO + Postgres
-- [ ] Live e2e against docker (when daemon available)
+- [x] E2E core-loop in CI (Postgres + Redis services)
 
 **Gate:** User raises alert → nearest Level 1 notified → one accepts → dispatcher sees it live.
 

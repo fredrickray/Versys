@@ -1,13 +1,16 @@
 services:
   postgres:
     image: postgis/postgis:16-3.4
+    # Apple Silicon: image is amd64; Docker Desktop emulates it.
+    platform: linux/amd64
     container_name: versys-postgres
     environment:
       POSTGRES_USER: versys
       POSTGRES_PASSWORD: versys
       POSTGRES_DB: versys
+    # Host 5433 avoids clashing with a local Postgres already on 5432
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - versys_pg:/var/lib/postgresql/data
     healthcheck:
@@ -34,6 +37,92 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
+
+  migrate:
+    build: .
+    container_name: versys-migrate
+    env_file: .env
+    environment: &app-env
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: versys
+      DATABASE_PASSWORD: versys
+      DATABASE_NAME: versys
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["node", "./node_modules/typeorm/cli.js", "migration:run", "-d", "dist/database/data-source.js"]
+    restart: "no"
+    profiles: ["app"]
+
+  seed:
+    build: .
+    container_name: versys-seed
+    env_file: .env
+    environment:
+      <<: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["node", "dist/database/seeds/run-seeds.js"]
+    restart: "no"
+    profiles: ["app"]
+
+  api:
+    build: .
+    container_name: versys-api
+    env_file: .env
+    environment:
+      <<: *app-env
+      API_PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    command: ["node", "dist/main.api.js"]
+    profiles: ["app"]
+
+  realtime:
+    build: .
+    container_name: versys-realtime
+    env_file: .env
+    environment:
+      <<: *app-env
+      REALTIME_PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    command: ["node", "dist/main.realtime.js"]
+    profiles: ["app"]
+
+  worker:
+    build: .
+    container_name: versys-worker
+    env_file: .env
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    command: ["node", "dist/main.worker.js"]
+    profiles: ["app"]
 
 volumes:
   versys_pg:

@@ -55,7 +55,8 @@ export class EscalationScheduler {
       'prompt',
       { incidentId, assignmentId },
       {
-        jobId: `prompt:${incidentId}`,
+        // BullMQ custom jobId cannot contain ':'
+        jobId: `prompt-${incidentId}`,
         delay: this.timers.PROMPT_AFTER_MS,
         removeOnComplete: true,
       },
@@ -67,7 +68,7 @@ export class EscalationScheduler {
       'auto_escalate',
       { incidentId },
       {
-        jobId: `auto:${incidentId}`,
+        jobId: `auto-${incidentId}`,
         delay: this.timers.AUTO_ESCALATE_AFTER_PROMPT_MS,
         removeOnComplete: true,
       },
@@ -75,7 +76,7 @@ export class EscalationScheduler {
   }
 
   async cancelForIncident(incidentId: string): Promise<void> {
-    for (const id of [`prompt:${incidentId}`, `auto:${incidentId}`]) {
+    for (const id of [`prompt-${incidentId}`, `auto-${incidentId}`]) {
       const job = await this.queue.getJob(id);
       if (job) await job.remove();
     }
