@@ -106,15 +106,16 @@ Replace mock SMS with Termii; send OTP and alert fallbacks over the wire.
 
 **You provide before Phase 8:** Termii API key + approved sender ID (links in chat).
 
-### Phase 8 — Deploy staging (then prod)
+### Phase 8 — Deploy staging (then prod) *(implemented on feat/deploy — awaiting host secrets)*
 
-Replace echo deploy workflows with real registry + host deploy.
+Replace echo deploy workflows with GHCR + SSH VPS deploy.
 
-- [ ] Container registry push on CI
-- [ ] Staging deploy workflow (migrate + seed roles/places, no demo users in prod)
-- [ ] Prod workflow + runbook
+- [x] Build/push image to GHCR (`:staging` / `:prod`)
+- [x] Staging workflow (push `main` or manual); migrate + seed with `SEED_SKIP_DEMO`
+- [x] Prod workflow (manual + `production` environment approval)
+- [x] `docker-compose.deploy.yml`, `scripts/deploy-remote.sh`, deploy runbook
 
-**You provide after this phase:** Hosting choice + registry/host credentials (Render / Fly / AWS / campus VPS — open decision).
+**You provide before Phase 9:** Staging VPS + GitHub Environment secrets (links in chat / `docs/runbooks/deploy.md`).
 
 ### Phase 9 — Mobile contract lock
 

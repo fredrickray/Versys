@@ -1,9 +1,115 @@
 name: deploy-prod
+
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: versys
+
 jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name
+        id: meta
+        run: |
+          OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${OWNER_LC}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:prod
+            ${{ steps.meta.outputs.image }}:prod-${{ github.sha }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
+    needs: build-push
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - run: echo "Manual approval gate via GitHub Environment — implement deploy target later"
+      - uses: actions/checkout@v4
+
+      - name: Require prod SSH secrets
+        env:
+          HOST: ${{ secrets.PROD_SSH_HOST }}
+          KEY: ${{ secrets.PROD_SSH_KEY }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$KEY" ]; then
+            echo "::error::PROD_SSH_HOST / PROD_SSH_KEY required for production deploy"
+            exit 1
+          fi
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Sync compose + deploy script
+        env:
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          REMOTE="${SSH_USER}@${SSH_HOST}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "$REMOTE" 'mkdir -p ~/versys/scripts'
+          scp -i ~/.ssh/deploy_key -P "$PORT" \
+            docker-compose.deploy.yml \
+            "$REMOTE:~/versys/docker-compose.deploy.yml"
+          scp -i ~/.ssh/deploy_key -P "$PORT" \
+            scripts/deploy-remote.sh \
+            "$REMOTE:~/versys/scripts/deploy-remote.sh"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "$REMOTE" 'chmod +x ~/versys/scripts/deploy-remote.sh'
+
+      - name: Login GHCR on host + deploy
+        env:
+          SSH_USER: ${{ secrets.PROD_SSH_USER }}
+          SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          IMAGE: ${{ needs.build-push.outputs.image }}:prod-${{ github.sha }}
+          GHCR_USER: ${{ secrets.GHCR_PULL_USER }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          REMOTE="${SSH_USER}@${SSH_HOST}"
+          PULL_USER="${GHCR_USER:-$ACTOR}"
+          PULL_TOKEN="${GHCR_TOKEN:-$GITHUB_TOKEN}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" "$REMOTE" \
+            "PULL_USER='$PULL_USER' PULL_TOKEN='$PULL_TOKEN' VERSYS_IMAGE='$IMAGE' bash -s" <<'EOF'
+          set -euo pipefail
+          echo "$PULL_TOKEN" | docker login ghcr.io -u "$PULL_USER" --password-stdin
+          export VERSYS_IMAGE
+          export DEPLOY_ROOT="$HOME/versys"
+          ~/versys/scripts/deploy-remote.sh
+          EOF
