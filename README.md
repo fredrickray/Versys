@@ -58,5 +58,7 @@ EVENT_NAME="African Debating Championship 2026"
 MAINTENANCE_MODE=false   # keep false during the live event
 ```
 
-Ops snapshot: `GET /v1/ops/status` (JWT). Runbooks: `docs/runbooks/on-call-desk.md`, `paper-radio-protocol.md`.
+Ops snapshot: `GET /v1/ops/status` (JWT). Runbooks: `docs/runbooks/event-ops-pack.md`, `on-call-desk.md`, `paper-radio-protocol.md`.
+
+Level-4 agency phones: set `LEVEL4_PHONE_*` before seed (see `.env.example`); list via `GET /v1/places/external-contacts`.
 
