@@ -11,6 +11,11 @@ async function main(): Promise<void> {
     console.log(
       `Seeded roles=${summary.roles} places=${summary.places} contacts=${summary.externalContacts} demoUsers=${summary.demoUsers}`,
     );
+    if (summary.level4Placeholders.length > 0) {
+      console.log(
+        `Level-4 placeholders remaining: ${summary.level4Placeholders.join(', ')}`,
+      );
+    }
   } finally {
     await dataSource.destroy();
   }

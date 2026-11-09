@@ -15,7 +15,9 @@ Tune k6 and infra against this profile; revise after first drill.
 - [ ] `EVENT_MODE=true`, event name set
 - [ ] `MAINTENANCE_MODE=false`
 - [ ] Drill timers restored to production defaults (or confirmed)
+- [ ] Level-4 phones real (not `+234800000000*` placeholders)
 - [ ] Webhook secret set; Caddy/WAF allowlist live
 - [ ] Backup + restore-verify in last 24h
-- [ ] Paper/radio packs at dispatcher + muster points
+- [ ] Paper/radio packs at dispatcher + muster points (`event-ops-pack.md`)
 - [ ] On-call desk staffed; contacts filled
+- [ ] Two staging drills signed off (`drill-checklist.md`)
