@@ -9,9 +9,7 @@ async function bootstrap() {
   const logger = new Logger('Realtime');
   const port = config.getOrThrow<number>('realtimePort');
   await app.listen(port);
-  logger.log(
-    `Realtime listening on :${port} (Socket.IO gateway lands in Phase 1)`,
-  );
+  logger.log(`Realtime Socket.IO listening on :${port} (namespace /realtime)`);
 }
 
 void bootstrap();
