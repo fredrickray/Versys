@@ -1,10 +1,12 @@
 openapi: 3.1.0
 info:
   title: VERSYS API
-  version: 0.4.0
+  version: 1.0.0
   description: |
-    Veritas Emergency Response System — REST contract for mobile/web clients.
-    Base path `/v1`. Bearer JWT after OTP verify.
+    Veritas Emergency Response System — locked mobile/web contract (Phase 9).
+    REST base path `/v1`. Bearer JWT after OTP verify.
+    Realtime: Socket.IO on the realtime process (default :3001), namespace `/realtime`.
+    See also `docs/mobile-integration.md`.
 servers:
   - url: http://localhost:3000/v1
     description: Local API
@@ -69,14 +71,30 @@ paths:
               type: object
               required: [phoneE164]
               properties:
-                phoneE164: { type: string, example: "+2348012345678" }
+                phoneE164:
+                  $ref: "#/components/schemas/PhoneE164"
       responses:
         "202":
           description: OTP dispatched (Termii or mock)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [expiresInSeconds]
+                properties:
+                  expiresInSeconds: { type: integer }
         "429":
           description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "502":
           description: Live SMS provider failed to send OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /auth/otp/verify:
     post:
       tags: [Auth]
@@ -89,21 +107,22 @@ paths:
               type: object
               required: [phoneE164, code]
               properties:
-                phoneE164: { type: string }
-                code: { type: string }
+                phoneE164:
+                  $ref: "#/components/schemas/PhoneE164"
+                code: { type: string, minLength: 4, maxLength: 8 }
       responses:
         "201":
           description: Access + refresh tokens
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  accessToken: { type: string }
-                  refreshToken: { type: string }
-                  expiresIn: { type: string }
+                $ref: "#/components/schemas/TokenResponse"
         "401":
           description: Invalid OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /incidents:
     post:
       tags: [Incidents]
@@ -146,23 +165,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [clientEventId, type, channel]
-              properties:
-                clientEventId: { type: string }
-                type: { $ref: "#/components/schemas/IncidentType" }
-                channel:
-                  type: string
-                  enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd]
-                latitude: { type: number }
-                longitude: { type: number }
-                placeId: { type: string, format: uuid }
-                locationLabel: { type: string }
-                capturedAt: { type: string, format: date-time }
-                metadata: { type: object, additionalProperties: true }
+              $ref: "#/components/schemas/OfflineAlertRequest"
       responses:
         "202":
-          description: Accepted for processing
+          description: Accepted for processing (idempotent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfflineAlertResponse"
   /incidents/{incidentId}:
     get:
       tags: [Incidents]
@@ -569,6 +579,25 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    PhoneE164:
+      type: string
+      pattern: '^\+[1-9]\d{7,14}$'
+      example: "+2348012345678"
+    TokenResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: string, example: "15m" }
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode: { type: integer }
+        error: {}
+        correlationId: { type: string, nullable: true }
+        path: { type: string }
+        timestamp: { type: string, format: date-time }
     IncidentStatus:
       type: string
       enum: [reported, intervention_ongoing, resolved]
@@ -591,6 +620,38 @@ components:
         placeId: { type: string, format: uuid }
         locationLabel: { type: string }
         metadata: { type: object, additionalProperties: true }
+    OfflineAlertRequest:
+      type: object
+      required: [clientEventId, type, channel, capturedAt]
+      properties:
+        clientEventId: { type: string, maxLength: 64 }
+        type: { $ref: "#/components/schemas/IncidentType" }
+        channel:
+          type: string
+          enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd]
+        capturedAt: { type: string, format: date-time }
+        latitude: { type: number }
+        longitude: { type: number }
+        placeId: { type: string, format: uuid }
+        locationLabel: { type: string }
+        metadata: { type: object, additionalProperties: true }
+    OfflineAlertResponse:
+      type: object
+      properties:
+        accepted: { type: boolean }
+        duplicate: { type: boolean }
+        incidentId: { type: string, nullable: true }
+    FcmDataPayload:
+      type: object
+      description: String map on FCM data messages
+      properties:
+        incidentId: { type: string }
+        publicCode: { type: string }
+        alertLevel: { type: string }
+        attemptId: { type: string, format: uuid }
+        alarm: { type: string, enum: ["0", "1"] }
+        vibrate: { type: string, enum: ["0", "1"] }
+        blinkingBlue: { type: string, enum: ["0", "1"] }
     Incident:
       type: object
       properties:
