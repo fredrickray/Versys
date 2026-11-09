@@ -38,6 +38,8 @@ Health: `GET /v1/health` · Ready: `GET /v1/ready` · Swagger: `/docs` · Contra
 
 E2E (needs Postgres + Redis): `npm run test:e2e`
 
+Deploy (GHCR + VPS): see `docs/runbooks/deploy.md`. Staging publishes on push to `main`; production is manual with approval.
+
 Delivery plan: see `PHASES.md`.
 
 ## Design rules

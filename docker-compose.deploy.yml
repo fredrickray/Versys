@@ -1,0 +1,150 @@
+# Staging / production stack — uses a pre-built image from GHCR (no local build).
+# Usage on the host:
+#   export VERSYS_IMAGE=ghcr.io/<owner>/versys:staging
+#   docker compose -f docker-compose.deploy.yml --env-file .env.deploy up -d
+#
+# First boot / after schema changes:
+#   docker compose -f docker-compose.deploy.yml --env-file .env.deploy run --rm migrate
+#   docker compose -f docker-compose.deploy.yml --env-file .env.deploy run --rm seed
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-versys}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-versys}
+    volumes:
+      - versys_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-versys} -d ${DATABASE_NAME:-versys}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [versys]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [versys]
+
+  migrate:
+    image: ${VERSYS_IMAGE:?set VERSYS_IMAGE}
+    restart: "no"
+    env_file: [.env.deploy]
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["node", "./node_modules/typeorm/cli.js", "migration:run", "-d", "dist/database/data-source.js"]
+    networks: [versys]
+    profiles: ["ops"]
+
+  seed:
+    image: ${VERSYS_IMAGE:?set VERSYS_IMAGE}
+    restart: "no"
+    env_file: [.env.deploy]
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Never ship demo personas to staging/prod
+      SEED_SKIP_DEMO: "true"
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["node", "dist/database/seeds/run-seeds.js"]
+    networks: [versys]
+    profiles: ["ops"]
+
+  api:
+    image: ${VERSYS_IMAGE:?set VERSYS_IMAGE}
+    restart: unless-stopped
+    env_file: [.env.deploy]
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      API_PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "${API_HOST_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["node", "dist/main.api.js"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [versys]
+
+  realtime:
+    image: ${VERSYS_IMAGE:?set VERSYS_IMAGE}
+    restart: unless-stopped
+    env_file: [.env.deploy]
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REALTIME_PORT: 3001
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "${REALTIME_HOST_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["node", "dist/main.realtime.js"]
+    networks: [versys]
+
+  worker:
+    image: ${VERSYS_IMAGE:?set VERSYS_IMAGE}
+    restart: unless-stopped
+    env_file: [.env.deploy]
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["node", "dist/main.worker.js"]
+    networks: [versys]
+
+networks:
+  versys:
+
+volumes:
+  versys_pg:
