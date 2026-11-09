@@ -117,12 +117,14 @@ Replace echo deploy workflows with GHCR + SSH VPS deploy.
 
 **You provide before Phase 9:** Staging VPS + GitHub Environment secrets (links in chat / `docs/runbooks/deploy.md`).
 
-### Phase 9 — Mobile contract lock
+### Phase 9 — Mobile contract lock *(locked on feat/mobile-contract)*
 
 Ensure OpenAPI + auth/device/offline paths match what the mobile team ships; no backend feature work beyond contract fixes.
 
-- [ ] Contract review with mobile
-- [ ] Fix any field mismatches found in first client build
+- [x] OpenAPI bumped to **1.0.0** (auth/offline/error/FCM schemas tightened)
+- [x] `docs/mobile-integration.md` — REST + Socket.IO + FCM client guide
+- [x] Offline flush requires `capturedAt` (matches DTO)
+- [ ] Joint review sign-off with mobile once first client build exists (ops/process)
 
 ### Phase 10 — Live ops readiness
 
