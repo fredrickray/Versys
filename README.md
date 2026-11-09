@@ -34,7 +34,7 @@ docker compose --profile app up -d --build
 
 Demo phones (OTP logged in non-prod): `+2348010000001` reporter · `+2348010000002` sheriff · `+2348010000003` dispatcher.
 
-Health: `GET /v1/health` · Ready: `GET /v1/ready` · Swagger: `/docs` · Contract: `docs/openapi.yaml`
+Health: `GET /v1/health` · Ready: `GET /v1/ready` · Swagger: `/docs` · Contract: `docs/openapi.yaml` (v1.0) · Mobile: `docs/mobile-integration.md`
 
 E2E (needs Postgres + Redis): `npm run test:e2e`
 
