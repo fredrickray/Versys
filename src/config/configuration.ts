@@ -74,6 +74,9 @@ export default () => {
     rateLimitWebhooksPerMinute: Number(
       env.RATE_LIMIT_WEBHOOKS_PER_MINUTE ?? 60,
     ),
+    channelSimulatorOnly:
+      String(env.CHANNEL_SIMULATOR_ONLY) === 'true' ||
+      env.CHANNEL_SIMULATOR_ONLY === true,
     channelWebhookSecret: env.CHANNEL_WEBHOOK_SECRET || '',
     escalationTimers: {
       PROMPT_AFTER_MS: env.ESCALATION_PROMPT_AFTER_MS

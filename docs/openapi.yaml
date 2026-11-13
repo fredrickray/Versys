@@ -618,10 +618,17 @@ paths:
   /channels/sms/inbound:
     post:
       tags: [Channels]
-      summary: Aggregator inbound SMS webhook
+      summary: Simulator inbound SMS webhook
+      description: |
+        This endpoint is simulator-only. `providerMessageId` is the provider's
+        immutable delivery identifier and is durably replay-protected. Repeating
+        a completed message returns the original body without creating another
+        incident. A reused key with a different canonical payload returns `409`.
       parameters:
         - in: header
           name: x-versys-webhook-secret
+          required: true
+          description: Required in staging and production; use a 32+ character simulator secret.
           schema: { type: string }
       requestBody:
         required: true
@@ -629,21 +636,67 @@ paths:
           application/json:
             schema:
               type: object
-              required: [fromE164, body]
+              required: [fromE164, body, providerMessageId]
               properties:
-                fromE164: { type: string }
+                fromE164:
+                  $ref: "#/components/schemas/PhoneE164"
                 body: { type: string }
-                providerMessageId: { type: string }
+                providerMessageId: { type: string, minLength: 1, maxLength: 160 }
       responses:
         "200":
-          description: Parsed and registered (or help SMS sent)
+          description: Parsed and registered, an invalid-SMS help reply, or a completed replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundSmsResponse"
+        "400":
+          description: Invalid webhook request shape
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid webhook secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Provider message ID was reused with a different payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Webhook or alert rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Another callback owns the idempotency lease. Retry after the indicated delay.
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /channels/ussd/session:
     post:
       tags: [Channels]
-      summary: Aggregator USSD session webhook
+      summary: Simulator USSD session webhook
+      description: |
+        This endpoint is simulator-only. Redis keeps intermediate menu state for
+        120 seconds. Only the terminal confirmation (`text: "1"` at the confirm
+        step) receives durable replay protection, keyed by `sessionId`; a retry
+        after Redis session expiry returns the stored terminal response instead
+        of creating a new incident.
       parameters:
         - in: header
           name: x-versys-webhook-secret
+          required: true
+          description: Required in staging and production; use a 32+ character simulator secret.
           schema: { type: string }
       requestBody:
         required: true
@@ -653,13 +706,51 @@ paths:
               type: object
               required: [phoneE164]
               properties:
-                sessionId: { type: string }
-                phoneE164: { type: string }
+                sessionId: { type: string, minLength: 1, maxLength: 160 }
+                phoneE164:
+                  $ref: "#/components/schemas/PhoneE164"
                 text: { type: string }
                 networkCode: { type: string }
       responses:
         "200":
-          description: Menu / end response
+          description: Menu, cancellation, terminal confirmation, or completed terminal replay.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UssdWebhookResponse"
+        "400":
+          description: Invalid webhook request shape
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid webhook secret
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Session ID was reused with a different terminal confirmation identity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Webhook or alert rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Another callback owns the terminal-confirmation lease. Retry after the indicated delay.
+          headers:
+            Retry-After:
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -682,6 +773,26 @@ components:
       type: string
       pattern: '^\+[1-9]\d{7,14}$'
       example: "+2348012345678"
+    InboundSmsResponse:
+      oneOf:
+        - type: object
+          required: [ok, publicCode, incidentId]
+          properties:
+            ok: { type: boolean, const: true }
+            publicCode: { type: string }
+            incidentId: { type: string, format: uuid }
+        - type: object
+          required: [ok, reason]
+          properties:
+            ok: { type: boolean, const: false }
+            reason: { type: string, enum: [unparseable, unknown_place] }
+    UssdWebhookResponse:
+      type: object
+      required: [sessionId, message, end]
+      properties:
+        sessionId: { type: string }
+        message: { type: string }
+        end: { type: boolean }
     RefreshTokenRequest:
       type: object
       required: [refreshToken, deviceId]

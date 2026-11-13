@@ -7,9 +7,11 @@
 - [ ] Swagger disabled (or auth-gated) in production
 
 ## Channels
-- [ ] `CHANNEL_WEBHOOK_SECRET` set for SMS/USSD aggregators
+- [ ] `CHANNEL_SIMULATOR_ONLY=true` and `SMS_PROVIDER=mock` until a provider-specific signed-body contract is approved
+- [ ] `CHANNEL_WEBHOOK_SECRET` is at least 32 characters in staging/production
 - [ ] Webhook rate limit tuned (`RATE_LIMIT_WEBHOOKS_PER_MINUTE`)
-- [ ] Aggregator IPs allowlisted at Caddy / cloud WAF
+- [ ] Live provider signature, timestamp, nonce, and raw-body verification reviewed before simulator mode is disabled
+- [ ] Provider IPs allowlisted at Caddy / cloud WAF as a supplemental control
 
 ## Data (NDPA 2023)
 - [ ] Location pings only during incident/duty (enforced in LocationService)

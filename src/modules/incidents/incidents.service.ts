@@ -6,18 +6,18 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import type { AuthUser } from '../../common/decorators/current-user.decorator';
-import { ALERT_LEVEL_NOTIFY_ROLES } from '../../common/constants/permissions';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { initialAlertLevel } from '../../common/constants/incident';
 import {
   NEAREST_STAFF_LIMIT,
   NEAREST_STAFF_RADIUS_M,
   STAFF_GEO_KEY,
 } from '../../common/constants/location';
-import { initialAlertLevel } from '../../common/constants/incident';
+import { ALERT_LEVEL_NOTIFY_ROLES } from '../../common/constants/permissions';
+import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { AlertLevel, AuditAction, IncidentStatus } from '../../common/enums';
 import {
   IncidentEvent,
@@ -48,6 +48,7 @@ export class IncidentsService {
     private readonly audit: AuditService,
     private readonly events: EventEmitter2,
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(
@@ -55,10 +56,26 @@ export class IncidentsService {
     actor: CreateIncidentActor,
   ): Promise<IncidentEntity> {
     await this.assertRateLimit(actor);
+    const saved = await this.dataSource.transaction((manager) =>
+      this.createWithinTransaction(dto, actor, manager),
+    );
+    await this.publishCreated(saved);
+    return saved;
+  }
 
+  /**
+   * Persists the incident and its audit record through the caller's transaction.
+   * Call publishCreated only after that transaction commits.
+   */
+  async createWithinTransaction(
+    dto: CreateIncidentDto,
+    actor: CreateIncidentActor,
+    manager: EntityManager,
+  ): Promise<IncidentEntity> {
+    const incidents = manager.getRepository(IncidentEntity);
     const alertLevel = initialAlertLevel(dto.type);
-    const incident = this.incidents.create({
-      publicCode: await this.allocatePublicCode(),
+    const incident = incidents.create({
+      publicCode: await this.allocatePublicCode(incidents),
       type: dto.type,
       status: IncidentStatus.REPORTED,
       alertLevel,
@@ -71,23 +88,29 @@ export class IncidentsService {
       longitude: dto.longitude ?? null,
       metadata: dto.metadata ?? {},
     });
+    const saved = await incidents.save(incident);
 
-    const saved = await this.incidents.save(incident);
-
-    await this.audit.append({
-      action: AuditAction.INCIDENT_CREATED,
-      actorUserId: actor.userId,
-      incidentId: saved.id,
-      resourceType: 'incident',
-      resourceId: saved.id,
-      metadata: {
-        type: saved.type,
-        channel: saved.channel,
-        alertLevel: saved.alertLevel,
-        publicCode: saved.publicCode,
+    await this.audit.append(
+      {
+        action: AuditAction.INCIDENT_CREATED,
+        actorUserId: actor.userId,
+        incidentId: saved.id,
+        resourceType: 'incident',
+        resourceId: saved.id,
+        metadata: {
+          type: saved.type,
+          channel: saved.channel,
+          alertLevel: saved.alertLevel,
+          publicCode: saved.publicCode,
+        },
       },
-    });
+      manager,
+    );
+    return saved;
+  }
 
+  /** Emits post-commit best-effort events for a newly persisted incident. */
+  async publishCreated(saved: IncidentEntity): Promise<void> {
     const payload: IncidentCreatedPayload = {
       incidentId: saved.id,
       type: saved.type,
@@ -113,7 +136,6 @@ export class IncidentsService {
     this.logger.log(
       `Incident ${saved.publicCode} created level=${saved.alertLevel} notify=${notifyUserIds.length}`,
     );
-    return saved;
   }
 
   async addDetails(
@@ -194,28 +216,18 @@ export class IncidentsService {
     await this.incidents.save(incident);
   }
 
-  private async allocatePublicCode(): Promise<string> {
-    for (let i = 0; i < 8; i++) {
-      const code = generatePublicCode();
-      const exists = await this.incidents.exist({
-        where: { publicCode: code },
-      });
-      if (!exists) return code;
-    }
-    throw new Error('public_code_allocation_failed');
-  }
-
-  private async assertRateLimit(actor: CreateIncidentActor): Promise<void> {
+  async assertRateLimit(actor: CreateIncidentActor): Promise<void> {
     const keyPart = actor.userId ?? actor.phoneE164 ?? 'anon';
     const key = `rate:alert:${keyPart}`;
     const limit = this.config.getOrThrow<number>('rateLimitAlertsPerHour');
     const count = await this.redis.client.incr(key);
     if (count === 1) await this.redis.client.expire(key, 3600);
-    if (count > limit)
+    if (count > limit) {
       throw new HttpException(
         'alert_rate_limited',
         HttpStatus.TOO_MANY_REQUESTS,
       );
+    }
   }
 
   /**
@@ -226,13 +238,11 @@ export class IncidentsService {
     const targets = new Set<string>();
 
     const dispatchers = await this.users.findActiveDispatchers();
-    for (const d of dispatchers) targets.add(d.id);
+    for (const dispatcher of dispatchers) targets.add(dispatcher.id);
 
     const roleKeys = [...ALERT_LEVEL_NOTIFY_ROLES[incident.alertLevel]];
-    // Level 1 always notified on create (spec); higher levels also see status via realtime later
     const level1Roles = [...ALERT_LEVEL_NOTIFY_ROLES[AlertLevel.LOW]];
-    const rolesForGeo =
-      incident.alertLevel === AlertLevel.LOW ? level1Roles : level1Roles;
+    const rolesForGeo = level1Roles;
 
     if (
       incident.latitude != null &&
@@ -253,7 +263,7 @@ export class IncidentsService {
 
       if (nearby?.length) {
         const staff = await this.users.findActiveByStaffRoles(rolesForGeo);
-        const allowed = new Set(staff.map((s) => s.id));
+        const allowed = new Set(staff.map((member) => member.id));
         for (const id of nearby) {
           if (allowed.has(id)) targets.add(id);
         }
@@ -264,9 +274,20 @@ export class IncidentsService {
       const fallback = await this.users.findActiveByStaffRoles(
         roleKeys.length ? roleKeys : level1Roles,
       );
-      for (const s of fallback) targets.add(s.id);
+      for (const member of fallback) targets.add(member.id);
     }
 
     return [...targets];
+  }
+
+  private async allocatePublicCode(
+    incidents: Repository<IncidentEntity>,
+  ): Promise<string> {
+    for (let i = 0; i < 8; i += 1) {
+      const code = generatePublicCode();
+      const exists = await incidents.exist({ where: { publicCode: code } });
+      if (!exists) return code;
+    }
+    throw new Error('public_code_allocation_failed');
   }
 }

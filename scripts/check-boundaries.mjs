@@ -4,8 +4,9 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../src/common', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../src/common', import.meta.url));
 let violations = 0;
 
 function walk(dir) {

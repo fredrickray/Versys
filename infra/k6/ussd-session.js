@@ -25,6 +25,6 @@ export default function () {
     }),
     { headers },
   );
-  check(start, { "ussd start": (r) => r.status === 200 || r.status === 201 });
+  check(start, { "ussd start": (r) => r.status === 200 });
   sleep(0.3);
 }
