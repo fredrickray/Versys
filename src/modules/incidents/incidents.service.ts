@@ -39,6 +39,7 @@ import { generatePublicCode } from '../../common/utils/public-code';
 import { RedisService } from '../../redis/redis.service';
 import { AuditService } from '../audit/audit.service';
 import { AssignmentEntity } from '../assignments/entities/assignment.entity';
+import { RealtimeOutboxService } from '../realtime/realtime-outbox.service';
 import { UsersService } from '../users/users.service';
 import { AddIncidentDetailsDto } from './dto/add-incident-details.dto';
 import { CreateIncidentDto } from './dto/create-incident.dto';
@@ -79,6 +80,7 @@ export class IncidentsService {
     private readonly users: UsersService,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
+    private readonly realtimeOutbox: RealtimeOutboxService,
     private readonly events: EventEmitter2,
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
@@ -139,6 +141,12 @@ export class IncidentsService {
       },
       manager,
     );
+    await this.realtimeOutbox.append(manager, {
+      eventKey: `incident.created:${saved.id}`,
+      type: 'incident.created',
+      incidentId: saved.id,
+      occurredAt: saved.createdAt,
+    });
     return saved;
   }
 
@@ -225,6 +233,9 @@ export class IncidentsService {
       saved,
       await this.needsPreciseLocation(saved.id, actor),
     );
+  }
+
+  findById(id: string): Promise<IncidentEntity | null> {
     return this.incidents.findOne({ where: { id } });
   }
 

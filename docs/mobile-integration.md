@@ -85,26 +85,33 @@ Incident reads are actor-scoped. A reporter sees their own incidents, an active 
 
 ## 4. Socket.IO (live updates)
 
-Connect to realtime process (port **3001** locally), namespace **`/realtime`**.
+Connect to the dedicated realtime process (port **3001** locally), namespace **`/realtime`**, and authenticate with the current access token.
 
 ```text
-io(REALTIME_URL, { path: '/socket.io', transports: ['websocket'] })
-// namespace: /realtime
+io(`${REALTIME_URL}/realtime`, {
+  path: '/socket.io',
+  transports: ['websocket'],
+  auth: { token: accessToken },
+})
 ```
+
+Missing, expired, refresh, and deactivated-user tokens fail the connection. The server rechecks current permissions during subscription and delivery.
 
 | Client emit | Body | Server ack |
 |-------------|------|------------|
-| `subscribe:incident` | `{ incidentId }` | `{ ok: true }` |
-| `subscribe:dispatch` | (none) | `{ ok: true }` |
+| `subscribe:incident` | `{ incidentId }` | `{ ok: true }` or `{ ok: false, error: "forbidden" }` |
+| `subscribe:dispatch` | (none) | `{ ok: true }` or `{ ok: false, error: "forbidden" }` |
 
-| Server emit | Room | Payload |
-|-------------|------|---------|
-| `incident.created` | `dispatch` | `{ incidentId }` |
-| `incident.updated` | `incident:{id}` + `dispatch` | `{ incidentId }` |
-| `assignment.accepted` | `dispatch` | assignment payload |
-| `assignment.rejected` | `dispatch` | assignment payload |
+| Server emit | Authorized recipients | Payload |
+|-------------|-----------------------|---------|
+| `incident.created` | Current dispatch subscribers | committed event envelope |
+| `incident.updated` | Authorized incident + dispatch subscribers | committed event envelope |
+| `assignment.accepted` | Authorized incident + dispatch subscribers | committed event envelope |
+| `assignment.rejected` | Authorized incident + dispatch subscribers | committed event envelope |
 
-Dispatchers should `subscribe:dispatch`. Staff following one incident should `subscribe:incident`.
+Each envelope contains `{ schemaVersion, eventId, type, incidentId, occurredAt, payload }`. Treat delivery as at-least-once and deduplicate by `eventId`. Fetch sensitive incident details from actor-scoped REST rather than expecting coordinates or reporter data in socket payloads.
+
+Only dispatch-authorized users may subscribe to `dispatch`. Incident subscriptions use the same reporter, accepted-responder, and dispatch policy as REST. Deactivated or role-revoked sockets are disconnected or removed before protected delivery.
 
 ---
 

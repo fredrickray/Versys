@@ -20,7 +20,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ChannelsModule } from './modules/channels/channels.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PlacesModule } from './modules/places/places.module';
-import { RealtimeModule } from './modules/realtime/realtime.module';
 import { OpsModule } from './modules/ops/ops.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { MediaModule } from './modules/media/media.module';
@@ -48,7 +47,6 @@ import { MediaModule } from './modules/media/media.module';
     ChannelsModule,
     AnalyticsModule,
     PlacesModule,
-    RealtimeModule,
     OpsModule,
     MediaModule,
   ],

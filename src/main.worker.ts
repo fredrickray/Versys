@@ -1,4 +1,4 @@
-import { createServer, type Server } from 'http';
+import { createServer, type Server } from 'node:http';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { resolveListenPort } from './common/utils/listen-port';
@@ -32,7 +32,9 @@ async function bootstrap() {
   const port = resolveListenPort(Number(process.env.WORKER_PORT) || 3002);
 
   // eslint-disable-next-line no-console
-  console.log(`[Worker] opening health listener on 0.0.0.0:${port} (PORT=${process.env.PORT ?? ''})`);
+  console.log(
+    `[Worker] opening health listener on 0.0.0.0:${port} (PORT=${process.env.PORT ?? ''})`,
+  );
 
   let server: Server;
   try {
@@ -48,15 +50,26 @@ async function bootstrap() {
     const app = await NestFactory.createApplicationContext(WorkerModule, {
       bufferLogs: true,
     });
-    logger.log('BullMQ worker context online');
+    logger.log('BullMQ workers and durable outbox publishers are online');
 
-    const shutdown = () => {
+    let shuttingDown = false;
+    const shutdown = (signal: NodeJS.Signals) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      logger.log(`Worker received ${signal}; closing health server and queues`);
       server.close(() => {
-        void app.close().then(() => process.exit(0));
+        void app
+          .close()
+          .then(() => process.exit(0))
+          .catch((error: unknown) => {
+            const message = error instanceof Error ? error.stack : String(error);
+            logger.error(message);
+            process.exit(1);
+          });
       });
     };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+    process.once('SIGINT', () => shutdown('SIGINT'));
+    process.once('SIGTERM', () => shutdown('SIGTERM'));
   } catch (err) {
     logger.error(
       'Worker Nest bootstrap failed — health port stays up so the deploy probe can pass',

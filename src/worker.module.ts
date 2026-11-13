@@ -16,6 +16,7 @@ import { UsersModule } from './modules/users/users.module';
 import { PlacesModule } from './modules/places/places.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { IncidentsJobsModule } from './modules/incidents/incidents-jobs.module';
+import { RealtimeOutboxJobsModule } from './modules/realtime/realtime-outbox-jobs.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { IncidentsJobsModule } from './modules/incidents/incidents-jobs.module';
     LocationJobsModule,
     IncidentsModule,
     IncidentsJobsModule,
+    RealtimeOutboxJobsModule,
   ],
 })
 export class WorkerModule {}
