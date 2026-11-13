@@ -43,13 +43,9 @@ services:
     container_name: versys-migrate
     env_file: .env
     environment: &app-env
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_USER: versys
-      DATABASE_PASSWORD: versys
-      DATABASE_NAME: versys
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      # Override host .env localhost URLs with compose service names
+      DATABASE_URL: postgresql://versys:versys@postgres:5432/versys
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy

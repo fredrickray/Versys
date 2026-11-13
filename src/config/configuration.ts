@@ -1,28 +1,37 @@
+import {
+  resolvePostgresConnection,
+  resolveRedisConnection,
+} from './connection-urls';
 import type { Env } from './env.validation';
 
 export default () => {
   const env = process.env as unknown as Env;
+  const postgres = resolvePostgresConnection(env);
+  const redis = resolveRedisConnection(env);
+
   return {
     nodeEnv: env.NODE_ENV,
     appName: env.APP_NAME,
     apiPort: Number(env.API_PORT ?? 3000),
     realtimePort: Number(env.REALTIME_PORT ?? 3001),
     database: {
-      host: env.DATABASE_HOST,
-      port: Number(env.DATABASE_PORT ?? 5432),
-      username: env.DATABASE_USER,
-      password: env.DATABASE_PASSWORD,
-      database: env.DATABASE_NAME,
-      ssl: String(env.DATABASE_SSL) === 'true' || env.DATABASE_SSL === true,
+      url: postgres.url,
+      host: postgres.host,
+      port: postgres.port,
+      username: postgres.username,
+      password: postgres.password,
+      database: postgres.database,
+      ssl: postgres.ssl,
       logging:
         String(env.DATABASE_LOGGING) === 'true' ||
         env.DATABASE_LOGGING === true,
     },
     redis: {
-      host: env.REDIS_HOST,
-      port: Number(env.REDIS_PORT ?? 6379),
-      password: env.REDIS_PASSWORD || undefined,
-      db: Number(env.REDIS_DB ?? 0),
+      url: redis.url,
+      host: redis.host,
+      port: redis.port,
+      password: redis.password,
+      db: redis.db,
     },
     jwt: {
       accessSecret: env.JWT_ACCESS_SECRET,
