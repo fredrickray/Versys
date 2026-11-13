@@ -7,25 +7,34 @@ import { SnakeNamingStrategy } from './naming.strategy';
   imports: [
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres' as const,
-        host: config.getOrThrow<string>('database.host'),
-        port: config.getOrThrow<number>('database.port'),
-        username: config.getOrThrow<string>('database.username'),
-        password: config.getOrThrow<string>('database.password'),
-        database: config.getOrThrow<string>('database.database'),
-        ssl: config.get<boolean>('database.ssl')
+      useFactory: (config: ConfigService) => {
+        const url = config.get<string>('database.url');
+        const ssl = config.get<boolean>('database.ssl')
           ? { rejectUnauthorized: false }
-          : false,
-        autoLoadEntities: true,
-        namingStrategy: new SnakeNamingStrategy(),
-        synchronize: false,
-        logging: config.get<boolean>('database.logging') ?? false,
-        // PostGIS: enable once migrations add the extension
-        extra: {
-          application_name: 'versys',
-        },
-      }),
+          : false;
+        const base = {
+          type: 'postgres' as const,
+          ssl,
+          autoLoadEntities: true,
+          namingStrategy: new SnakeNamingStrategy(),
+          synchronize: false,
+          logging: config.get<boolean>('database.logging') ?? false,
+          extra: {
+            application_name: 'versys',
+          },
+        };
+        if (url) {
+          return { ...base, url };
+        }
+        return {
+          ...base,
+          host: config.getOrThrow<string>('database.host'),
+          port: config.getOrThrow<number>('database.port'),
+          username: config.getOrThrow<string>('database.username'),
+          password: config.getOrThrow<string>('database.password'),
+          database: config.getOrThrow<string>('database.database'),
+        };
+      },
     }),
   ],
 })

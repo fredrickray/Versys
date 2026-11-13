@@ -40,10 +40,8 @@ services:
     restart: "no"
     env_file: [.env.deploy]
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${DATABASE_USER:-versys}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-versys}
+      REDIS_URL: redis://redis:6379/0
       NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       postgres:
@@ -57,10 +55,8 @@ services:
     restart: "no"
     env_file: [.env.deploy]
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${DATABASE_USER:-versys}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-versys}
+      REDIS_URL: redis://redis:6379/0
       # Never ship demo personas to staging/prod
       SEED_SKIP_DEMO: "true"
       NODE_ENV: ${NODE_ENV:-production}
@@ -76,10 +72,8 @@ services:
     restart: unless-stopped
     env_file: [.env.deploy]
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${DATABASE_USER:-versys}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-versys}
+      REDIS_URL: redis://redis:6379/0
       API_PORT: 3000
       NODE_ENV: ${NODE_ENV:-production}
     ports:
@@ -109,10 +103,8 @@ services:
     restart: unless-stopped
     env_file: [.env.deploy]
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${DATABASE_USER:-versys}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-versys}
+      REDIS_URL: redis://redis:6379/0
       REALTIME_PORT: 3001
       NODE_ENV: ${NODE_ENV:-production}
     ports:
@@ -130,10 +122,8 @@ services:
     restart: unless-stopped
     env_file: [.env.deploy]
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${DATABASE_USER:-versys}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME:-versys}
+      REDIS_URL: redis://redis:6379/0
       NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       postgres:
