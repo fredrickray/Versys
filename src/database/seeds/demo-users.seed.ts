@@ -32,12 +32,21 @@ export const DEMO_USER_SEEDS = [
     userCategory: UserCategory.DISPATCHER,
     isDispatcher: true,
   },
+  {
+    phoneE164: '+2348010000004',
+    fullName: 'Demo CAT3 Commander',
+    staffRoleKey: 'dean_student_affairs',
+    staffCategory: StaffCategory.CAT_3,
+    userCategory: UserCategory.SECURITY,
+    isDispatcher: false,
+  },
 ] as const;
 
-export type DemoUserKey = 'reporter' | 'sheriff' | 'dispatcher';
+export type DemoUserKey = 'reporter' | 'sheriff' | 'dispatcher' | 'cat3';
 
 export const DEMO_PHONES: Record<DemoUserKey, string> = {
   reporter: DEMO_USER_SEEDS[0].phoneE164,
   sheriff: DEMO_USER_SEEDS[1].phoneE164,
   dispatcher: DEMO_USER_SEEDS[2].phoneE164,
+  cat3: DEMO_USER_SEEDS[3].phoneE164,
 };

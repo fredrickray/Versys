@@ -9,8 +9,8 @@ export type PlaceSeed = {
   longitude?: number;
 };
 
-/** Approximate Veritas University (Bwari) campus cluster for local demos. */
-const CAMPUS = { lat: 9.0778, lng: 7.4112 } as const;
+/** Veritas University Abuja campus center (matches web GeoJSON). */
+const CAMPUS = { lat: 9.2907, lng: 7.41642 } as const;
 
 const hostels: PlaceSeed[] = 'ABCDEFGHIJKLMNOPQRST'
   .split('')
