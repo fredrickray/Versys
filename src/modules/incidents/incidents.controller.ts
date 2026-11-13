@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -16,6 +17,7 @@ import {
 } from '../../common/decorators/current-user.decorator';
 import { IncidentStatus } from '../../common/enums';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AddIncidentDetailsDto } from './dto/add-incident-details.dto';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { OfflineAlertDto } from './dto/offline-alert.dto';
 import { IncidentsService } from './incidents.service';
@@ -44,6 +46,16 @@ export class IncidentsController {
   @Get()
   list(@Query('status') status?: IncidentStatus) {
     return this.incidents.list({ status });
+  }
+
+  /** Reporter (or any staff / dispatcher) appends a note to the incident. */
+  @Patch(':incidentId/details')
+  addDetails(
+    @Param('incidentId', ParseUUIDPipe) incidentId: string,
+    @Body() dto: AddIncidentDetailsDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.incidents.addDetails(incidentId, dto, user);
   }
 
   @Get(':incidentId')

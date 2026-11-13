@@ -50,6 +50,12 @@ export default () => {
         alertChannel: env.SMS_TERMII_ALERT_CHANNEL || 'generic',
       },
     },
+    cloudinary: {
+      cloudName: env.CLOUDINARY_CLOUD_NAME || '',
+      apiKey: env.CLOUDINARY_API_KEY || '',
+      apiSecret: env.CLOUDINARY_API_SECRET || '',
+      uploadFolder: env.CLOUDINARY_UPLOAD_FOLDER || 'versys/incidents',
+    },
     corsOrigins: (env.CORS_ORIGINS ?? '')
       .split(',')
       .map((s) => s.trim())

@@ -5,6 +5,7 @@ import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
 import { IncidentEntity } from './entities/incident.entity';
 import { IncidentsController } from './incidents.controller';
+import { VisitorIncidentsController } from './visitor-incidents.controller';
 import { IncidentsService } from './incidents.service';
 import { OfflineAlertsService } from './offline-alerts.service';
 
@@ -15,7 +16,7 @@ import { OfflineAlertsService } from './offline-alerts.service';
     AuditModule,
     QueuesModule,
   ],
-  controllers: [IncidentsController],
+  controllers: [IncidentsController, VisitorIncidentsController],
   providers: [IncidentsService, OfflineAlertsService],
   exports: [IncidentsService, OfflineAlertsService, TypeOrmModule],
 })

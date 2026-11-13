@@ -47,6 +47,7 @@ export enum IncidentChannel {
   DISPATCHER_PHONE = 'dispatcher_phone',
   SMS = 'sms',
   USSD = 'ussd',
+  VISITOR = 'visitor',
 }
 
 export enum AssignmentStatus {
@@ -97,6 +98,7 @@ export enum AuditAction {
   ESCALATION_MANUAL = 'escalation.manual',
   ESCALATION_LEVEL4 = 'escalation.level4',
   INCIDENT_RESOLVED = 'incident.resolved',
+  INCIDENT_DETAILS_ADDED = 'incident.details_added',
   ANNOUNCEMENT_SENT = 'announcement.sent',
   AUTH_LOGIN = 'auth.login',
   AUTH_FAILED = 'auth.failed',
