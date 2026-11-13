@@ -20,13 +20,7 @@ export class RbacService {
     opts: { staffCategory: StaffCategory | null; isDispatcher: boolean },
     permission: Permission,
   ): boolean {
-    if (opts.isDispatcher && DISPATCHER_PERMISSIONS.has(permission)) {
-      return true;
-    }
-    if (opts.staffCategory != null) {
-      return staffHasPermission(opts.staffCategory, permission);
-    }
-    return permission === Permission.VIEW_NAVIGATION_MAP;
+    return effectivePermissions(opts).has(permission);
   }
 
   matrix(): { staff: Record<string, Permission[]>; dispatcher: Permission[] } {

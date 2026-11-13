@@ -1,8 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserCategory } from '../../common/enums';
+import { StaffCategory, UserCategory } from '../../common/enums';
 import { UserEntity } from './entities/user.entity';
+
+export type UserProfile = {
+  id: string;
+  phoneE164: string;
+  fullName: string | null;
+  userCategory: UserCategory;
+  staffCategory: StaffCategory | null;
+  isDispatcher: boolean;
+  isActive: boolean;
+};
+
+function toProfile(u: UserEntity): UserProfile {
+  return {
+    id: u.id,
+    phoneE164: u.phoneE164,
+    fullName: u.fullName,
+    userCategory: u.userCategory,
+    staffCategory: u.staffCategory,
+    isDispatcher: u.isDispatcher,
+    isActive: u.isActive,
+  };
+}
 
 @Injectable()
 export class UsersService {
@@ -13,6 +35,23 @@ export class UsersService {
 
   findById(id: string): Promise<UserEntity | null> {
     return this.users.findOne({ where: { id, isActive: true } });
+  }
+
+  async getProfile(id: string): Promise<UserProfile | null> {
+    const user = await this.findById(id);
+    return user ? toProfile(user) : null;
+  }
+
+  async updateProfile(
+    id: string,
+    patch: { fullName?: string },
+  ): Promise<UserProfile | null> {
+    const user = await this.findById(id);
+    if (!user) return null;
+    if (patch.fullName !== undefined) {
+      user.fullName = patch.fullName.trim();
+    }
+    return toProfile(await this.users.save(user));
   }
 
   findByPhone(phoneE164: string): Promise<UserEntity | null> {
