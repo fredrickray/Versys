@@ -79,6 +79,8 @@ Ack delivery (cancels SMS fallback):
 `type` enum: `fire`, `fight`, `ongoing_crime`, `suspicious_movement`, `accident`, `invasion`, `violent_attack`  
 `channel` for app: prefer `app_button` or `rapid_sos`
 
+Incident reads are actor-scoped. A reporter sees their own incidents, an active accepted responder sees assigned incidents, and dispatch users see operational incidents. Unknown and unauthorized IDs both return `404`; precise coordinates are returned only for operational access.
+
 ---
 
 ## 4. Socket.IO (live updates)

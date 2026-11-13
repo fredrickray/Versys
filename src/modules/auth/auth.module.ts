@@ -10,6 +10,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RefreshSessionEntity } from './entities/refresh-session.entity';
+import { PrincipalModule } from './principal.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -18,6 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RbacModule,
     AuditModule,
     ChannelsModule,
+    PrincipalModule,
     TypeOrmModule.forFeature([RefreshSessionEntity]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

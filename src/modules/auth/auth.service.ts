@@ -25,9 +25,7 @@ import type { RefreshTokenPayload, TokenResponse } from './auth.types';
 import { RefreshSessionEntity } from './entities/refresh-session.entity';
 import type { JwtPayload } from './strategies/jwt.strategy';
 
-type RefreshResult =
-  | { ok: true; tokens: TokenResponse }
-  | { ok: false };
+type RefreshResult = { ok: true; tokens: TokenResponse } | { ok: false };
 
 @Injectable()
 export class AuthService {
@@ -149,7 +147,10 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn: accessTtl };
   }
 
-  async refresh(refreshToken: string, deviceId: string): Promise<TokenResponse> {
+  async refresh(
+    refreshToken: string,
+    deviceId: string,
+  ): Promise<TokenResponse> {
     const payload = await this.verifyRefreshToken(refreshToken);
     const presentedHash = hashToken(refreshToken);
 
@@ -260,6 +261,7 @@ export class AuthService {
   private async signAccessToken(user: UserEntity): Promise<string> {
     const payload: JwtPayload = {
       sub: user.id,
+      typ: 'access',
       staffCategory: user.staffCategory,
       isDispatcher: user.isDispatcher,
       permissions: this.rbac.permissionsFor({

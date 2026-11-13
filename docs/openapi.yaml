@@ -188,7 +188,8 @@ paths:
           description: Alert rate limited
     get:
       tags: [Incidents]
-      summary: List incidents
+      summary: List incidents visible to the current actor
+      description: Reporters see their incidents, accepted responders see active assignments, and dispatch users see operational incidents. Precise coordinates are omitted unless operational access requires them.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query
@@ -219,17 +220,20 @@ paths:
   /incidents/{incidentId}:
     get:
       tags: [Incidents]
-      summary: Get incident
+      summary: Get an actor-authorized incident view
+      description: Unauthorized and unknown incident IDs both return `404`. Reporter phone and arbitrary metadata are never returned by this view.
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: "#/components/parameters/IncidentId"
       responses:
         "200":
-          description: Incident
+          description: Actor-authorized incident view
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Incident"
+        "404":
+          description: Incident absent or not visible to the current actor
   /incidents/visitor:
     post:
       tags: [Incidents]
@@ -252,7 +256,7 @@ paths:
                 note: { type: string, minLength: 1, maxLength: 1000 }
       responses:
         "201":
-          description: Incident registered (channel=visitor)
+          description: Redacted incident view registered with channel=visitor
           content:
             application/json:
               schema:
@@ -275,15 +279,19 @@ paths:
               required: [note]
               properties:
                 note: { type: string, minLength: 1, maxLength: 1000 }
+                photoUrls:
+                  type: array
+                  maxItems: 3
+                  items: { type: string, format: uri, pattern: '^https://' }
       responses:
         "200":
-          description: Updated incident (metadata.reporterNotes appended)
+          description: Updated redacted incident view
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Incident"
         "403":
-          description: Not the reporter and not staff/dispatcher
+          description: Not the reporter and not staff or dispatcher
         "404":
           description: Incident not found
   /incidents/{incidentId}/assignments:

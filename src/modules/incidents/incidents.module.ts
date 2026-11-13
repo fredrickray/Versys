@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { QueuesModule } from '../../queues/queues.module';
 import { AuditModule } from '../audit/audit.module';
+import { AssignmentEntity } from '../assignments/entities/assignment.entity';
 import { UsersModule } from '../users/users.module';
 import { IncidentEntity } from './entities/incident.entity';
 import { IncidentsController } from './incidents.controller';
@@ -11,7 +12,7 @@ import { OfflineAlertsService } from './offline-alerts.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([IncidentEntity]),
+    TypeOrmModule.forFeature([IncidentEntity, AssignmentEntity]),
     UsersModule,
     AuditModule,
     QueuesModule,

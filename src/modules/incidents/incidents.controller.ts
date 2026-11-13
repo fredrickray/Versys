@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   HttpCode,
-  NotFoundException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -32,8 +31,9 @@ export class IncidentsController {
   ) {}
 
   @Post()
-  create(@Body() dto: CreateIncidentDto, @CurrentUser() user: AuthUser) {
-    return this.incidents.create(dto, { userId: user.userId });
+  async create(@Body() dto: CreateIncidentDto, @CurrentUser() user: AuthUser) {
+    const incident = await this.incidents.create(dto, { userId: user.userId });
+    return this.incidents.toView(incident, false);
   }
 
   /** Phone offline queue flush — idempotent per clientEventId. */
@@ -44,8 +44,11 @@ export class IncidentsController {
   }
 
   @Get()
-  list(@Query('status') status?: IncidentStatus) {
-    return this.incidents.list({ status });
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query('status') status?: IncidentStatus,
+  ) {
+    return this.incidents.listForActor(user, { status });
   }
 
   /** Reporter (or any staff / dispatcher) appends a note to the incident. */
@@ -59,9 +62,10 @@ export class IncidentsController {
   }
 
   @Get(':incidentId')
-  async getOne(@Param('incidentId', ParseUUIDPipe) incidentId: string) {
-    const incident = await this.incidents.findById(incidentId);
-    if (!incident) throw new NotFoundException('incident_not_found');
-    return incident;
+  getOne(
+    @Param('incidentId', ParseUUIDPipe) incidentId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.incidents.findOneForActor(incidentId, user);
   }
 }

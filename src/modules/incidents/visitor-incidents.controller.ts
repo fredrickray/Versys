@@ -12,9 +12,9 @@ export class VisitorIncidentsController {
   constructor(private readonly incidents: IncidentsService) {}
 
   @Post()
-  create(@Body() dto: CreateVisitorIncidentDto) {
+  async create(@Body() dto: CreateVisitorIncidentDto) {
     const note = dto.note?.trim();
-    return this.incidents.create(
+    const incident = await this.incidents.create(
       {
         type: dto.type,
         channel: IncidentChannel.VISITOR,
@@ -32,5 +32,6 @@ export class VisitorIncidentsController {
       },
       { userId: null, phoneE164: dto.phoneE164 },
     );
+    return this.incidents.toView(incident, false);
   }
 }

@@ -9,7 +9,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import {
+  Brackets,
+  DataSource,
+  EntityManager,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { initialAlertLevel } from '../../common/constants/incident';
 import {
   NEAREST_STAFF_LIMIT,
@@ -18,7 +24,13 @@ import {
 } from '../../common/constants/location';
 import { ALERT_LEVEL_NOTIFY_ROLES } from '../../common/constants/permissions';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
-import { AlertLevel, AuditAction, IncidentStatus } from '../../common/enums';
+import {
+  AlertLevel,
+  AssignmentStatus,
+  AuditAction,
+  IncidentStatus,
+  Permission,
+} from '../../common/enums';
 import {
   IncidentEvent,
   type IncidentCreatedPayload,
@@ -26,6 +38,7 @@ import {
 import { generatePublicCode } from '../../common/utils/public-code';
 import { RedisService } from '../../redis/redis.service';
 import { AuditService } from '../audit/audit.service';
+import { AssignmentEntity } from '../assignments/entities/assignment.entity';
 import { UsersService } from '../users/users.service';
 import { AddIncidentDetailsDto } from './dto/add-incident-details.dto';
 import { CreateIncidentDto } from './dto/create-incident.dto';
@@ -36,6 +49,24 @@ export type CreateIncidentActor = {
   phoneE164?: string | null;
 };
 
+export type IncidentView = {
+  id: string;
+  publicCode: string;
+  type: IncidentEntity['type'];
+  status: IncidentEntity['status'];
+  alertLevel: IncidentEntity['alertLevel'];
+  channel: IncidentEntity['channel'];
+  locationLabel: string | null;
+  placeId: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  promptIssuedAt: Date | null;
+  firstAcceptedAt: Date | null;
+  resolvedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class IncidentsService {
   private readonly logger = new Logger(IncidentsService.name);
@@ -43,6 +74,8 @@ export class IncidentsService {
   constructor(
     @InjectRepository(IncidentEntity)
     private readonly incidents: Repository<IncidentEntity>,
+    @InjectRepository(AssignmentEntity)
+    private readonly assignments: Repository<AssignmentEntity>,
     private readonly users: UsersService,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
@@ -142,7 +175,7 @@ export class IncidentsService {
     incidentId: string,
     dto: AddIncidentDetailsDto,
     actor: AuthUser,
-  ): Promise<IncidentEntity> {
+  ): Promise<IncidentView> {
     const incident = await this.findById(incidentId);
     if (!incident) throw new NotFoundException('incident_not_found');
 
@@ -188,20 +221,72 @@ export class IncidentsService {
         photoCount: photoUrls.length,
       },
     });
-    return saved;
-  }
-
-  findById(id: string): Promise<IncidentEntity | null> {
+    return this.toView(
+      saved,
+      await this.needsPreciseLocation(saved.id, actor),
+    );
     return this.incidents.findOne({ where: { id } });
   }
 
-  async list(opts: { status?: IncidentStatus; limit?: number } = {}) {
+  async findOneForActor(id: string, actor: AuthUser): Promise<IncidentView> {
+    const qb = this.incidents
+      .createQueryBuilder('i')
+      .where('i.id = :id', { id });
+    this.applyActorScope(qb, actor);
+    const incident = await qb.getOne();
+    if (!incident) throw new NotFoundException('incident_not_found');
+
+    return this.toView(
+      incident,
+      await this.needsPreciseLocation(incident.id, actor),
+    );
+  }
+
+  async listForActor(
+    actor: AuthUser,
+    opts: { status?: IncidentStatus; limit?: number } = {},
+  ): Promise<IncidentView[]> {
     const qb = this.incidents
       .createQueryBuilder('i')
       .orderBy('i.created_at', 'DESC')
       .take(opts.limit ?? 50);
     if (opts.status) qb.andWhere('i.status = :status', { status: opts.status });
-    return qb.getMany();
+    this.applyActorScope(qb, actor);
+    const incidents = await qb.getMany();
+
+    if (this.hasDispatchAccess(actor)) {
+      return incidents.map((incident) => this.toView(incident, true));
+    }
+    const operationalIncidentIds = await this.acceptedIncidentIds(
+      incidents.map((incident) => incident.id),
+      actor,
+    );
+    return incidents.map((incident) =>
+      this.toView(incident, operationalIncidentIds.has(incident.id)),
+    );
+  }
+
+  toView(
+    incident: IncidentEntity,
+    includePreciseLocation: boolean,
+  ): IncidentView {
+    return {
+      id: incident.id,
+      publicCode: incident.publicCode,
+      type: incident.type,
+      status: incident.status,
+      alertLevel: incident.alertLevel,
+      channel: incident.channel,
+      locationLabel: incident.locationLabel,
+      placeId: incident.placeId,
+      latitude: includePreciseLocation ? incident.latitude : null,
+      longitude: includePreciseLocation ? incident.longitude : null,
+      promptIssuedAt: incident.promptIssuedAt,
+      firstAcceptedAt: incident.firstAcceptedAt,
+      resolvedAt: incident.resolvedAt,
+      createdAt: incident.createdAt,
+      updatedAt: incident.updatedAt,
+    };
   }
 
   async markInterventionOngoing(incidentId: string): Promise<void> {
@@ -278,6 +363,83 @@ export class IncidentsService {
     }
 
     return [...targets];
+  }
+
+  private applyActorScope(
+    qb: SelectQueryBuilder<IncidentEntity>,
+    actor: AuthUser,
+  ): void {
+    if (this.hasDispatchAccess(actor)) return;
+
+    qb.andWhere(
+      new Brackets((scope) => {
+        scope.where('i.reporter_user_id = :actorUserId', {
+          actorUserId: actor.userId,
+        });
+        if (this.hasResponderAccess(actor)) {
+          scope.orWhere(
+            `EXISTS (
+              SELECT 1
+              FROM assignments access_assignment
+              WHERE access_assignment.incident_id = i.id
+                AND access_assignment.assignee_user_id = :actorUserId
+                AND access_assignment.status = :acceptedStatus
+            )`,
+            { acceptedStatus: AssignmentStatus.ACCEPTED },
+          );
+        }
+      }),
+    );
+  }
+
+  private hasDispatchAccess(actor: AuthUser): boolean {
+    return (
+      actor.isDispatcher ||
+      actor.permissions.includes(Permission.DISPATCH_ASSIGN)
+    );
+  }
+
+  private hasResponderAccess(actor: AuthUser): boolean {
+    return (
+      actor.permissions.includes(Permission.ACCEPT_REJECT_INTERVENTION) ||
+      actor.permissions.includes(Permission.CONFIRM_OR_ESCALATE_ASSIGNED)
+    );
+  }
+
+  private async needsPreciseLocation(
+    incidentId: string,
+    actor: AuthUser,
+  ): Promise<boolean> {
+    if (this.hasDispatchAccess(actor)) return true;
+    if (!this.hasResponderAccess(actor)) return false;
+    return this.assignments.exist({
+      where: {
+        incidentId,
+        assigneeUserId: actor.userId,
+        status: AssignmentStatus.ACCEPTED,
+      },
+    });
+  }
+
+  private async acceptedIncidentIds(
+    incidentIds: string[],
+    actor: AuthUser,
+  ): Promise<Set<string>> {
+    if (!incidentIds.length || !this.hasResponderAccess(actor)) {
+      return new Set();
+    }
+    const rows = await this.assignments
+      .createQueryBuilder('assignment')
+      .select('assignment.incident_id', 'incidentId')
+      .where('assignment.incident_id IN (:...incidentIds)', { incidentIds })
+      .andWhere('assignment.assignee_user_id = :userId', {
+        userId: actor.userId,
+      })
+      .andWhere('assignment.status = :status', {
+        status: AssignmentStatus.ACCEPTED,
+      })
+      .getRawMany<{ incidentId: string }>();
+    return new Set(rows.map((row) => row.incidentId));
   }
 
   private async allocatePublicCode(
