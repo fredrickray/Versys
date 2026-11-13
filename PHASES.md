@@ -126,10 +126,14 @@ Ensure OpenAPI + auth/device/offline paths match what the mobile team ships; no 
 - [x] Offline flush requires `capturedAt` (matches DTO)
 - [ ] Joint review sign-off with mobile once first client build exists (ops/process)
 
-### Phase 10 — Live ops readiness
+### Phase 10 — Live ops readiness *(engineering on feat/ops-readiness — live drills are ops)*
 
-- [ ] Replace seed Level-4 phones with real agency numbers
-- [ ] Live drills + degraded-network ladder on staging
-- [ ] Event staffing / paper packs (ops)
+- [x] Level-4 phones overridable via `LEVEL4_PHONE_*` env (seed warns on placeholders)
+- [x] Printable event ops pack + drill sign-off (`docs/runbooks/event-ops-pack.md`, `drill-checklist.md`)
+- [ ] Fill real agency numbers on staging/prod host `.env.deploy` and re-seed
+- [ ] Live drills + degraded-network ladder on staging (two signed passes)
+- [ ] Event staffing roster + printed packs on desk (ops)
+
+**You provide:** Real Level-4 E.164 numbers (DSS, DSS-Hunters, Military, Police, Fire Service).
 
 **Gate:** Two drills pass; paper/radio protocol understood on desk.

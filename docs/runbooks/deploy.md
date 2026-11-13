@@ -9,6 +9,8 @@ VERSYS ships a Docker image to **GitHub Container Registry (GHCR)** and pulls it
 | `Dockerfile` | Builds api/realtime/worker image |
 | `docker-compose.deploy.yml` | Host stack: Postgres+PostGIS, Redis, api, realtime, worker |
 | `scripts/deploy-remote.sh` | Migrate → seed (no demo users) → restart services |
+
+Before live seed: set `LEVEL4_PHONE_*` in host `.env.deploy` (see `event-ops-pack.md`). Seed logs a warning if placeholders remain.
 | `deploy-staging.yml` | Push to `main` or manual → image `:staging` → SSH deploy |
 | `deploy-prod.yml` | Manual + GitHub Environment approval → `:prod` / `:latest` |
 

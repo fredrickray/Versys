@@ -7,8 +7,9 @@
 
 ## Desk kit
 - [ ] Laptop with staging + prod kubectl/SSH access
+- [ ] Full event ops pack printed (`event-ops-pack.md`)
 - [ ] Printed paper/radio protocol (`paper-radio-protocol.md`)
-- [ ] Dispatcher hotline number + Level-4 contact list
+- [ ] Dispatcher hotline number + Level-4 contact list (from `LEVEL4_PHONE_*` / API)
 - [ ] Slack/WhatsApp bridge for eng on-call
 - [ ] Latest backup timestamp verified (< 24h)
 
