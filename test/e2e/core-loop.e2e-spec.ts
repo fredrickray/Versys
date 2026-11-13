@@ -20,6 +20,8 @@ type IncidentBody = {
 type AssignmentBody = { status: string };
 type BoardRow = { id: string };
 
+const TEST_DEVICE_ID = '00000000-0000-4000-8000-000000000001';
+
 /**
  * Phase 1 gate: alert → notify → accept → dispatcher sees it.
  * Requires Postgres + Redis (CI services or local docker compose).
@@ -71,7 +73,7 @@ describe('core-loop (Phase 1)', () => {
 
     const res: Response = await request(server)
       .post('/v1/auth/otp/verify')
-      .send({ phoneE164, code })
+      .send({ phoneE164, code, deviceId: TEST_DEVICE_ID })
       .expect(201);
 
     const body = res.body as TokenBody;

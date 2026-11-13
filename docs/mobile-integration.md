@@ -1,6 +1,6 @@
 # VERSYS mobile integration contract
 
-**Contract version:** OpenAPI `1.0.0` (`docs/openapi.yaml`)  
+**Contract version:** OpenAPI `2.0.0` (`docs/openapi.yaml`)
 **REST base:** `{API_HOST}/v1` (local default `http://localhost:3000/v1`)  
 **Realtime:** Socket.IO on `{REALTIME_HOST}` (local default `http://localhost:3001`), namespace `/realtime`
 
@@ -8,7 +8,9 @@ This document is the locked client guide for Phase 9. Treat field names as camel
 
 ---
 
-## 1. Auth (OTP → JWT)
+## 1. Auth (OTP → device-bound JWT session)
+
+Create a random UUID v4 once per app installation and retain it as `deviceId`. It is an installation identifier, not an FCM token, IMEI, advertising ID, or phone number.
 
 1. `POST /v1/auth/otp/request`  
    Body: `{ "phoneE164": "+2348012345678" }`  
@@ -17,11 +19,19 @@ This document is the locked client guide for Phase 9. Treat field names as camel
    - `429` rate limited · `502` SMS provider failed (when not mock)
 
 2. `POST /v1/auth/otp/verify`  
-   Body: `{ "phoneE164": "+234…", "code": "123456" }`  
-   - `201` → `{ "accessToken", "refreshToken", "expiresIn" }`  
-   - Store `accessToken`; send `Authorization: Bearer <accessToken>` on all protected routes.
+   Body: `{ "phoneE164": "+234…", "code": "123456", "deviceId": "<installation-uuid>" }`
+   - `201` → `{ "accessToken", "refreshToken", "expiresIn" }`
+   - Store both tokens in Keychain/Keystore-backed secure storage.
+   - Send `Authorization: Bearer <accessToken>` on protected routes.
 
-There is **no refresh endpoint yet** — when access expires, run OTP again (or queue a refresh API as a future additive change).
+3. `POST /v1/auth/refresh`
+   Body: `{ "refreshToken": "<current-token>", "deviceId": "<same-installation-uuid>" }`
+   - `200` → a new `{ "accessToken", "refreshToken", "expiresIn" }`
+   - A refresh token is single-use. Allow only one in-flight refresh in the app and atomically replace the stored token after success.
+   - A missing or malformed request returns `400`. A wrong installation identity, token reuse, expiry, revocation, or an inactive account returns `401`. Re-authenticate with OTP after `401`.
+   - A lost refresh response can require OTP again because replaying the old token revokes its family.
+
+Auth responses use `Cache-Control: no-store`; never log either token or persist them in ordinary app preferences.
 
 ---
 
@@ -135,4 +145,4 @@ Full path list: `docs/openapi.yaml`.
 
 - Additive fields are OK without a major bump.  
 - Renames / removals / meaning changes require OpenAPI major version bump and mobile coordination.  
-- Current lock: **1.0.0**.
+- Current lock: **2.0.0**. The major bump makes `deviceId` mandatory for OTP verification.

@@ -12,6 +12,8 @@ const bool = z
       : ['1', 'true', 'yes', 'on'].includes(v.toLowerCase()),
   );
 
+const duration = z.string().regex(/^[1-9]\d*[smhd]$/);
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -42,9 +44,9 @@ export const envSchema = z
     REDIS_DB: z.coerce.number().int().nonnegative().optional().default(0),
 
     JWT_ACCESS_SECRET: z.string().min(32),
-    JWT_ACCESS_TTL: z.string().default('15m'),
+    JWT_ACCESS_TTL: duration.default('15m'),
     JWT_REFRESH_SECRET: z.string().min(32),
-    JWT_REFRESH_TTL: z.string().default('7d'),
+    JWT_REFRESH_TTL: duration.default('7d'),
 
     OTP_TTL_SECONDS: z.coerce.number().int().positive().default(300),
     OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),

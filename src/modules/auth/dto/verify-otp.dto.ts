@@ -1,4 +1,4 @@
-import { IsString, Length, Matches } from 'class-validator';
+import { IsString, IsUUID, Length, Matches } from 'class-validator';
 
 export class VerifyOtpDto {
   @IsString()
@@ -8,4 +8,8 @@ export class VerifyOtpDto {
   @IsString()
   @Length(4, 8)
   code!: string;
+
+  /** Random installation UUID generated and retained by the client. */
+  @IsUUID('4')
+  deviceId!: string;
 }

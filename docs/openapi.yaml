@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: VERSYS API
-  version: 1.0.0
+  version: 2.0.0
   description: |
     Veritas Emergency Response System — locked mobile/web contract (Phase 9).
     REST base path `/v1`. Bearer JWT after OTP verify.
@@ -98,27 +98,70 @@ paths:
   /auth/otp/verify:
     post:
       tags: [Auth]
-      summary: Verify OTP and issue tokens
+      summary: Verify OTP and issue a device-bound token family
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [phoneE164, code]
+              required: [phoneE164, code, deviceId]
               properties:
                 phoneE164:
                   $ref: "#/components/schemas/PhoneE164"
                 code: { type: string, minLength: 4, maxLength: 8 }
+                deviceId:
+                  type: string
+                  format: uuid
+                  description: Random installation UUID retained by the client
       responses:
         "201":
-          description: Access + refresh tokens
+          description: Access token and initial refresh token
+          headers:
+            Cache-Control:
+              schema: { type: string, example: no-store }
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/TokenResponse"
         "401":
-          description: Invalid OTP
+          description: Invalid OTP or inactive account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate a device-bound refresh token
+      description: |
+        Each refresh token is single-use. The client must serialize refreshes and
+        atomically replace its stored refresh token after a successful response.
+        Reuse or a device mismatch revokes the complete token family.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Rotated access and refresh tokens
+          headers:
+            Cache-Control:
+              schema: { type: string, example: no-store }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Invalid request shape
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid, expired, reused, revoked, or device-mismatched token
           content:
             application/json:
               schema:
@@ -639,6 +682,15 @@ components:
       type: string
       pattern: '^\+[1-9]\d{7,14}$'
       example: "+2348012345678"
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken, deviceId]
+      properties:
+        refreshToken: { type: string, minLength: 20, maxLength: 4096 }
+        deviceId:
+          type: string
+          format: uuid
+          description: Same installation UUID used during OTP verification
     TokenResponse:
       type: object
       required: [accessToken, refreshToken, expiresIn]

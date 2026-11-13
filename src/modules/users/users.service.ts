@@ -58,8 +58,12 @@ export class UsersService {
     return this.users.findOne({ where: { phoneE164, isActive: true } });
   }
 
+  findByPhoneIncludingInactive(phoneE164: string): Promise<UserEntity | null> {
+    return this.users.findOne({ where: { phoneE164 } });
+  }
+
   async findOrCreateByPhone(phoneE164: string): Promise<UserEntity> {
-    const existing = await this.findByPhone(phoneE164);
+    const existing = await this.findByPhoneIncludingInactive(phoneE164);
     if (existing) return existing;
     const user = this.users.create({
       phoneE164,

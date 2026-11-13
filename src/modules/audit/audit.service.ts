@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AuditLogEntity } from './entities/audit-log.entity';
 
 @Injectable()
@@ -10,16 +10,20 @@ export class AuditService {
     private readonly repo: Repository<AuditLogEntity>,
   ) {}
 
-  async append(entry: {
-    action: string;
-    actorUserId?: string | null;
-    incidentId?: string | null;
-    resourceType?: string | null;
-    resourceId?: string | null;
-    metadata?: Record<string, unknown>;
-    correlationId?: string | null;
-  }): Promise<AuditLogEntity> {
-    const row = this.repo.create({
+  async append(
+    entry: {
+      action: string;
+      actorUserId?: string | null;
+      incidentId?: string | null;
+      resourceType?: string | null;
+      resourceId?: string | null;
+      metadata?: Record<string, unknown>;
+      correlationId?: string | null;
+    },
+    manager?: EntityManager,
+  ): Promise<AuditLogEntity> {
+    const repo = manager?.getRepository(AuditLogEntity) ?? this.repo;
+    const row = repo.create({
       action: entry.action,
       actorUserId: entry.actorUserId ?? null,
       incidentId: entry.incidentId ?? null,
@@ -28,6 +32,6 @@ export class AuditService {
       metadata: entry.metadata ?? {},
       correlationId: entry.correlationId ?? null,
     });
-    return this.repo.save(row);
+    return repo.save(row);
   }
 }

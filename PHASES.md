@@ -121,7 +121,7 @@ Replace echo deploy workflows with GHCR + SSH VPS deploy.
 
 Ensure OpenAPI + auth/device/offline paths match what the mobile team ships; no backend feature work beyond contract fixes.
 
-- [x] OpenAPI bumped to **1.0.0** (auth/offline/error/FCM schemas tightened)
+- [x] OpenAPI bumped to **2.0.0** (device-bound refresh sessions added; auth request contract changed)
 - [x] `docs/mobile-integration.md` — REST + Socket.IO + FCM client guide
 - [x] Offline flush requires `capturedAt` (matches DTO)
 - [ ] Joint review sign-off with mobile once first client build exists (ops/process)

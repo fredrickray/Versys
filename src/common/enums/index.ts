@@ -101,5 +101,7 @@ export enum AuditAction {
   INCIDENT_DETAILS_ADDED = 'incident.details_added',
   ANNOUNCEMENT_SENT = 'announcement.sent',
   AUTH_LOGIN = 'auth.login',
+  AUTH_REFRESH = 'auth.refresh',
+  AUTH_SESSION_REVOKED = 'auth.session_revoked',
   AUTH_FAILED = 'auth.failed',
 }
