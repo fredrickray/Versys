@@ -69,6 +69,12 @@ export const envSchema = z.object({
     .positive()
     .default(60),
 
+  /** Cloudinary (incident photo uploads). All three required for uploads to work. */
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),
+  CLOUDINARY_API_KEY: z.string().optional().default(''),
+  CLOUDINARY_API_SECRET: z.string().optional().default(''),
+  CLOUDINARY_UPLOAD_FOLDER: z.string().optional().default('versys/incidents'),
+
   /** Optional shared secret for SMS/USSD aggregator webhooks (header x-versys-webhook-secret) */
   CHANNEL_WEBHOOK_SECRET: z.string().optional().default(''),
 

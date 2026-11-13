@@ -23,6 +23,7 @@ import { PlacesModule } from './modules/places/places.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { OpsModule } from './modules/ops/ops.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { MediaModule } from './modules/media/media.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DevicesModule } from './modules/devices/devices.module';
     PlacesModule,
     RealtimeModule,
     OpsModule,
+    MediaModule,
   ],
   providers: [MaintenanceMiddleware],
 })

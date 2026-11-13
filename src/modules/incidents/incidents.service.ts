@@ -1,8 +1,16 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { ALERT_LEVEL_NOTIFY_ROLES } from '../../common/constants/permissions';
 import {
   NEAREST_STAFF_LIMIT,
@@ -19,6 +27,7 @@ import { generatePublicCode } from '../../common/utils/public-code';
 import { RedisService } from '../../redis/redis.service';
 import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
+import { AddIncidentDetailsDto } from './dto/add-incident-details.dto';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { IncidentEntity } from './entities/incident.entity';
 
@@ -104,6 +113,59 @@ export class IncidentsService {
     this.logger.log(
       `Incident ${saved.publicCode} created level=${saved.alertLevel} notify=${notifyUserIds.length}`,
     );
+    return saved;
+  }
+
+  async addDetails(
+    incidentId: string,
+    dto: AddIncidentDetailsDto,
+    actor: AuthUser,
+  ): Promise<IncidentEntity> {
+    const incident = await this.findById(incidentId);
+    if (!incident) throw new NotFoundException('incident_not_found');
+
+    const isReporter = incident.reporterUserId === actor.userId;
+    const isStaff = actor.staffCategory != null || actor.isDispatcher;
+    if (!isReporter && !isStaff) {
+      throw new ForbiddenException('cannot_add_incident_details');
+    }
+
+    const existing = Array.isArray(incident.metadata?.reporterNotes)
+      ? (incident.metadata.reporterNotes as unknown[])
+      : [];
+    const at = new Date().toISOString();
+    const existingPhotos = Array.isArray(incident.metadata?.reporterPhotos)
+      ? (incident.metadata.reporterPhotos as unknown[])
+      : [];
+    const photoUrls = dto.photoUrls ?? [];
+    incident.metadata = {
+      ...(incident.metadata ?? {}),
+      reporterNotes: [
+        ...existing,
+        { note: dto.note.trim(), at, userId: actor.userId },
+      ],
+      ...(photoUrls.length > 0
+        ? {
+            reporterPhotos: [
+              ...existingPhotos,
+              ...photoUrls.map((url) => ({ url, at, userId: actor.userId })),
+            ],
+          }
+        : {}),
+    };
+    const saved = await this.incidents.save(incident);
+
+    await this.audit.append({
+      action: AuditAction.INCIDENT_DETAILS_ADDED,
+      actorUserId: actor.userId,
+      incidentId: saved.id,
+      resourceType: 'incident',
+      resourceId: saved.id,
+      metadata: {
+        noteLength: dto.note.trim().length,
+        photoCount: photoUrls.length,
+      },
+    });
     return saved;
   }
 
