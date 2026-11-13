@@ -35,6 +35,16 @@ export class EscalationScheduler {
   }
 
   async registerReconciler(): Promise<void> {
+    // Prune leftovers from Nest --watch restarts (failed completions leave noise).
+    try {
+      await this.queue.clean(0, 1000, 'failed');
+      await this.queue.clean(0, 1000, 'completed');
+    } catch (err) {
+      this.logger.warn(
+        `Could not prune stale escalation jobs: ${(err as Error).message}`,
+      );
+    }
+
     await this.queue.upsertJobScheduler(
       'escalation-reconciler',
       { every: this.timers.RECONCILER_INTERVAL_MS },

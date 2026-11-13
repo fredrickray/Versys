@@ -17,7 +17,10 @@ export const DEMO_USER_SEEDS = [
     phoneE164: '+2348010000002',
     fullName: 'Demo Sheriff Deputy',
     staffRoleKey: 'sheriff_deputy',
-    staffCategory: StaffCategory.CAT_1,
+    // CAT_2 (not CAT_1) so two-device E2E can final-resolve: CAT_1 may only
+    // confirm. staffRoleKey stays sheriff_deputy so Level-1 notifications
+    // still reach this persona.
+    staffCategory: StaffCategory.CAT_2,
     userCategory: UserCategory.SECURITY,
     isDispatcher: false,
   },

@@ -54,6 +54,8 @@ export async function seedAll(
       existing.groupKey = seed.groupKey;
       existing.ussdNumber = seed.ussdNumber;
       existing.isMusterPoint = seed.isMusterPoint;
+      existing.latitude = seed.latitude ?? null;
+      existing.longitude = seed.longitude ?? null;
       existing.isActive = true;
       await places.save(existing);
     } else {
@@ -64,6 +66,8 @@ export async function seedAll(
           groupKey: seed.groupKey,
           ussdNumber: seed.ussdNumber,
           isMusterPoint: seed.isMusterPoint,
+          latitude: seed.latitude ?? null,
+          longitude: seed.longitude ?? null,
           isActive: true,
           isBlocked: false,
         }),

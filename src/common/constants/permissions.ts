@@ -78,7 +78,12 @@ export function effectivePermissions(opts: {
   staffCategory: StaffCategory | null;
   isDispatcher: boolean;
 }): Set<Permission> {
-  const perms = new Set<Permission>([Permission.VIEW_NAVIGATION_MAP]);
+  // General authenticated users (reporters) may read announcements and muster places.
+  const perms = new Set<Permission>([
+    Permission.VIEW_NAVIGATION_MAP,
+    Permission.READ_MESSAGES,
+    Permission.VIEW_MUSTER_MAP,
+  ]);
 
   if (opts.staffCategory != null) {
     for (const p of STAFF_PERMISSIONS[opts.staffCategory]) {
