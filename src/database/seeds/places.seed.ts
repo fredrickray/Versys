@@ -4,7 +4,13 @@ export type PlaceSeed = {
   groupKey: string;
   ussdNumber: number;
   isMusterPoint: boolean;
+  /** Optional WGS84 — used by mobile distance / directions. */
+  latitude?: number;
+  longitude?: number;
 };
+
+/** Approximate Veritas University (Bwari) campus cluster for local demos. */
+const CAMPUS = { lat: 9.0778, lng: 7.4112 } as const;
 
 const hostels: PlaceSeed[] = 'ABCDEFGHIJKLMNOPQRST'
   .split('')
@@ -68,6 +74,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'sports_and_gate',
     ussdNumber: 1,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0018,
+    longitude: CAMPUS.lng - 0.0012,
   },
   {
     code: 'NLT',
@@ -75,6 +83,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 1,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0004,
+    longitude: CAMPUS.lng + 0.0006,
   },
   {
     code: 'FOOTBALL',
@@ -82,6 +92,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'sports_and_gate',
     ussdNumber: 2,
     isMusterPoint: true,
+    latitude: CAMPUS.lat - 0.0008,
+    longitude: CAMPUS.lng - 0.0005,
   },
   {
     code: 'BLOCK_A',
@@ -89,6 +101,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 2,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0002,
+    longitude: CAMPUS.lng + 0.0002,
   },
   {
     code: 'BLOCK_B',
@@ -96,6 +110,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 3,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0003,
+    longitude: CAMPUS.lng + 0.0004,
   },
   {
     code: 'BLOCK_C',
@@ -103,6 +119,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 4,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0005,
+    longitude: CAMPUS.lng + 0.0003,
   },
   {
     code: 'BLOCK_D',
@@ -110,6 +128,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 5,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0006,
+    longitude: CAMPUS.lng + 0.0005,
   },
   {
     code: 'CHAPEL',
@@ -117,6 +137,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'halls_and_chapel',
     ussdNumber: 1,
     isMusterPoint: false,
+    latitude: CAMPUS.lat - 0.0002,
+    longitude: CAMPUS.lng + 0.0008,
   },
   {
     code: 'ICT_PG',
@@ -124,6 +146,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 6,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0001,
+    longitude: CAMPUS.lng - 0.0003,
   },
   {
     code: 'LAW',
@@ -131,6 +155,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 7,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0007,
+    longitude: CAMPUS.lng - 0.0002,
   },
   {
     code: 'ENG',
@@ -138,6 +164,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 8,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0009,
+    longitude: CAMPUS.lng + 0.0001,
   },
   {
     code: 'MPHALL',
@@ -145,6 +173,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'halls_and_chapel',
     ussdNumber: 2,
     isMusterPoint: true,
+    latitude: CAMPUS.lat - 0.0004,
+    longitude: CAMPUS.lng + 0.0004,
   },
   {
     code: 'SENATE',
@@ -152,6 +182,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 9,
     isMusterPoint: false,
+    latitude: CAMPUS.lat,
+    longitude: CAMPUS.lng,
   },
   {
     code: 'MED',
@@ -159,6 +191,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'faculties',
     ussdNumber: 10,
     isMusterPoint: false,
+    latitude: CAMPUS.lat + 0.0011,
+    longitude: CAMPUS.lng + 0.0007,
   },
   {
     code: 'CAFE',
@@ -166,6 +200,8 @@ export const PLACE_SEEDS: PlaceSeed[] = [
     groupKey: 'halls_and_chapel',
     ussdNumber: 3,
     isMusterPoint: false,
+    latitude: CAMPUS.lat - 0.0001,
+    longitude: CAMPUS.lng - 0.0006,
   },
   ...hostels,
   ...namedHostels,
