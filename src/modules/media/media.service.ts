@@ -39,7 +39,13 @@ export class MediaService {
           { folder: c.uploadFolder, resource_type: 'image' },
           (err, result) => {
             if (err || !result) {
-              reject(err ?? new Error('empty_cloudinary_result'));
+              const reason =
+                err instanceof Error
+                  ? err
+                  : new Error(
+                      typeof err === 'string' ? err : 'empty_cloudinary_result',
+                    );
+              reject(reason);
               return;
             }
             resolve({ url: result.secure_url, publicId: result.public_id });

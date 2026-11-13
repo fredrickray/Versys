@@ -3,7 +3,6 @@ import {
   DISPATCHER_PERMISSIONS,
   STAFF_PERMISSIONS,
   effectivePermissions,
-  staffHasPermission,
 } from '../../common/constants/permissions';
 import { Permission, StaffCategory } from '../../common/enums';
 
