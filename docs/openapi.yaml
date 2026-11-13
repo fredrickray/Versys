@@ -187,6 +187,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Incident"
+  /incidents/visitor:
+    post:
+      tags: [Incidents]
+      summary: Public visitor alert (no JWT; rate limited per phone)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneE164, type]
+              properties:
+                phoneE164: { type: string, pattern: '^\+[1-9]\d{7,14}$' }
+                type: { $ref: "#/components/schemas/IncidentType" }
+                latitude: { type: number }
+                longitude: { type: number }
+                placeId: { type: string, format: uuid }
+                locationLabel: { type: string, maxLength: 120 }
+                note: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "201":
+          description: Incident registered (channel=visitor)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "429":
+          description: Alert rate limited
+  /incidents/{incidentId}/details:
+    patch:
+      tags: [Incidents]
+      summary: Append a reporter note (reporter, staff or dispatcher)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200":
+          description: Updated incident (metadata.reporterNotes appended)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "403":
+          description: Not the reporter and not staff/dispatcher
+        "404":
+          description: Incident not found
   /incidents/{incidentId}/assignments:
     post:
       tags: [Assignments]
@@ -365,11 +421,11 @@ paths:
   /announcements:
     get:
       tags: [Announcements]
-      summary: List announcements for current user
+      summary: List announcements for current user (each includes authorName)
       security: [{ bearerAuth: [] }]
       responses:
         "200":
-          description: Announcement list
+          description: Announcement list (with authorName string|null)
     post:
       tags: [Announcements]
       summary: Create targeted announcement
@@ -614,7 +670,7 @@ components:
         type: { $ref: "#/components/schemas/IncidentType" }
         channel:
           type: string
-          enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd]
+          enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd, visitor]
         latitude: { type: number }
         longitude: { type: number }
         placeId: { type: string, format: uuid }
@@ -628,7 +684,7 @@ components:
         type: { $ref: "#/components/schemas/IncidentType" }
         channel:
           type: string
-          enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd]
+          enum: [app_button, rapid_sos, dispatcher_phone, sms, ussd, visitor]
         capturedAt: { type: string, format: date-time }
         latitude: { type: number }
         longitude: { type: number }

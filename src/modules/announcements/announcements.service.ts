@@ -9,6 +9,10 @@ import { UserEntity } from '../users/entities/user.entity';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { AnnouncementEntity } from './entities/announcement.entity';
 
+export type AnnouncementWithAuthor = AnnouncementEntity & {
+  authorName: string | null;
+};
+
 @Injectable()
 export class AnnouncementsService {
   constructor(
@@ -23,7 +27,7 @@ export class AnnouncementsService {
   async create(
     actor: AuthUser,
     dto: CreateAnnouncementDto,
-  ): Promise<AnnouncementEntity> {
+  ): Promise<AnnouncementWithAuthor> {
     const any = actor.permissions.includes(Permission.PUSH_ANNOUNCEMENTS_ANY);
     const own = actor.permissions.includes(Permission.PUSH_ANNOUNCEMENTS_OWN);
     if (!any && !own) {
@@ -79,15 +83,34 @@ export class AnnouncementsService {
       });
     }
 
-    return row;
+    const [withAuthor] = await this.withAuthorNames([row]);
+    return withAuthor;
   }
 
-  listForUser(user: AuthUser, limit = 50): Promise<AnnouncementEntity[]> {
+  async listForUser(
+    _user: AuthUser,
+    limit = 50,
+  ): Promise<AnnouncementWithAuthor[]> {
     // Inbox: announcements targeting the user's category or GENERAL broadcast list
-    return this.announcements
+    const rows = await this.announcements
       .createQueryBuilder('a')
       .orderBy('a.published_at', 'DESC')
       .take(limit)
       .getMany();
+    return this.withAuthorNames(rows);
+  }
+
+  private async withAuthorNames(
+    rows: AnnouncementEntity[],
+  ): Promise<AnnouncementWithAuthor[]> {
+    const ids = [...new Set(rows.map((r) => r.authorUserId))];
+    const authors = ids.length
+      ? await this.users.find({ where: { id: In(ids) } })
+      : [];
+    const names = new Map(authors.map((u) => [u.id, u.fullName]));
+    return rows.map((r) => ({
+      ...r,
+      authorName: names.get(r.authorUserId) ?? null,
+    }));
   }
 }
