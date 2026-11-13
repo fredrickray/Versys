@@ -4,7 +4,10 @@ import { PlaceEntity } from '../../modules/places/entities/place.entity';
 import { RoleEntity } from '../../modules/rbac/entities/role.entity';
 import { UserEntity } from '../../modules/users/entities/user.entity';
 import { DEMO_USER_SEEDS } from './demo-users.seed';
-import { EXTERNAL_CONTACT_SEEDS } from './external-contacts.seed';
+import {
+  resolveExternalContactSeeds,
+  type ResolvedExternalContact,
+} from './external-contacts.seed';
 import { PLACE_SEEDS } from './places.seed';
 import { ROLE_SEEDS } from './roles-permissions.seed';
 
@@ -13,6 +16,7 @@ export type SeedSummary = {
   places: number;
   externalContacts: number;
   demoUsers: number;
+  level4Placeholders: string[];
 };
 
 /** Idempotent upsert of reference data + optional demo personas. */
@@ -67,8 +71,9 @@ export async function seedAll(
     }
   }
 
+  const externalContacts = resolveExternalContactSeeds();
   const contacts = ds.getRepository(ExternalContactEntity);
-  for (const seed of EXTERNAL_CONTACT_SEEDS) {
+  for (const seed of externalContacts) {
     const existing = await contacts.findOne({ where: { key: seed.key } });
     if (existing) {
       existing.agencyName = seed.agencyName;
@@ -85,6 +90,17 @@ export async function seedAll(
         }),
       );
     }
+  }
+
+  const level4Placeholders = externalContacts
+    .filter((c: ResolvedExternalContact) => c.isPlaceholder)
+    .map((c) => c.key);
+  if (level4Placeholders.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[seed] Level-4 placeholder phones still set for: ${level4Placeholders.join(', ')}. ` +
+        `Set LEVEL4_PHONE_* in .env before live ops (see docs/runbooks/event-ops-pack.md).`,
+    );
   }
 
   let demoCount = 0;
@@ -122,7 +138,8 @@ export async function seedAll(
   return {
     roles: ROLE_SEEDS.length,
     places: PLACE_SEEDS.length,
-    externalContacts: EXTERNAL_CONTACT_SEEDS.length,
+    externalContacts: externalContacts.length,
     demoUsers: demoCount,
+    level4Placeholders,
   };
 }
