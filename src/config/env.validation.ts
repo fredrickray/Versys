@@ -49,6 +49,10 @@ const baseEnvSchema = z.object({
 
   OTP_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+  OTP_TEST_CODE: z
+    .string()
+    .regex(/^\d{4,8}$/)
+    .optional(),
 
   FCM_ENABLED: bool.default(false),
   /** Firebase Admin service account, required when FCM_ENABLED=true. */
@@ -151,6 +155,13 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
       code: z.ZodIssueCode.custom,
       path: ['CHANNEL_WEBHOOK_SECRET'],
       message: 'must contain at least 32 characters outside development and test',
+    });
+  }
+  if (env.OTP_TEST_CODE && env.NODE_ENV !== 'test') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['OTP_TEST_CODE'],
+      message: 'is allowed only when NODE_ENV=test',
     });
   }
   if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {

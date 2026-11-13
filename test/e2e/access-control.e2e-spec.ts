@@ -20,6 +20,8 @@ type IncidentView = {
 };
 
 const DEVICE_ID = '00000000-0000-4000-8000-000000000020';
+const OTP_TEST_CODE = '123456';
+process.env.OTP_TEST_CODE ??= OTP_TEST_CODE;
 
 describe('current authorization and incident privacy', () => {
   let app: INestApplication;
@@ -78,11 +80,9 @@ describe('current authorization and incident privacy', () => {
       .post('/v1/auth/otp/request')
       .send({ phoneE164 })
       .expect(202);
-    const code = await redis.client.get(`otp:${phoneE164}`);
-    expect(code).toBeTruthy();
     const response: Response = await request(server())
       .post('/v1/auth/otp/verify')
-      .send({ phoneE164, code, deviceId })
+      .send({ phoneE164, code: OTP_TEST_CODE, deviceId })
       .expect(201);
     return response.body as Tokens;
   }
@@ -230,10 +230,9 @@ describe('current authorization and incident privacy', () => {
       .post('/v1/auth/otp/request')
       .send({ phoneE164 })
       .expect(202);
-    const code = await redis.client.get(`otp:${phoneE164}`);
     await request(server())
       .post('/v1/auth/otp/verify')
-      .send({ phoneE164, code, deviceId: DEVICE_ID })
+      .send({ phoneE164, code: OTP_TEST_CODE, deviceId: DEVICE_ID })
       .expect(401);
 
     expect(await users.count({ where: { phoneE164 } })).toBe(1);

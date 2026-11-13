@@ -21,6 +21,8 @@ type AssignmentBody = { status: string };
 type BoardRow = { id: string };
 
 const TEST_DEVICE_ID = '00000000-0000-4000-8000-000000000001';
+const OTP_TEST_CODE = '123456';
+process.env.OTP_TEST_CODE ??= OTP_TEST_CODE;
 
 /**
  * Phase 1 gate: alert → notify → accept → dispatcher sees it.
@@ -68,12 +70,9 @@ describe('core-loop (Phase 1)', () => {
       .send({ phoneE164 })
       .expect(202);
 
-    const code = await redis.client.get(`otp:${phoneE164}`);
-    expect(code).toBeTruthy();
-
     const res: Response = await request(server)
       .post('/v1/auth/otp/verify')
-      .send({ phoneE164, code, deviceId: TEST_DEVICE_ID })
+      .send({ phoneE164, code: OTP_TEST_CODE, deviceId: TEST_DEVICE_ID })
       .expect(201);
 
     const body = res.body as TokenBody;

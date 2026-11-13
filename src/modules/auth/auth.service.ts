@@ -9,8 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
   createHash,
+  randomBytes,
   randomInt,
   randomUUID,
+  scryptSync,
   timingSafeEqual,
 } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
@@ -26,6 +28,13 @@ import { RefreshSessionEntity } from './entities/refresh-session.entity';
 import type { JwtPayload } from './strategies/jwt.strategy';
 
 type RefreshResult = { ok: true; tokens: TokenResponse } | { ok: false };
+
+const CONSUME_OTP_SCRIPT = `
+  if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('DEL', KEYS[1])
+  end
+  return 0
+`;
 
 @Injectable()
 export class AuthService {
@@ -51,9 +60,19 @@ export class AuthService {
 
     const length = this.config.getOrThrow<number>('otp.length');
     const ttl = this.config.getOrThrow<number>('otp.ttlSeconds');
-    const code = String(randomInt(0, 10 ** length)).padStart(length, '0');
+    const testCode = this.config.get<string>('otp.testCode');
+    const code =
+      this.config.get<string>('nodeEnv') === 'test' && testCode
+        ? testCode
+        : String(randomInt(0, 10 ** length)).padStart(length, '0');
+    const salt = randomBytes(16).toString('hex');
 
-    await this.redis.client.set(`otp:${phoneE164}`, code, 'EX', ttl);
+    await this.redis.client.set(
+      `otp:${phoneE164}`,
+      encodeOtp(code, salt),
+      'EX',
+      ttl,
+    );
     await this.redis.client.set(throttleKey, '1', 'EX', 30);
 
     const sms = await this.channels.sendSms({
@@ -72,10 +91,6 @@ export class AuthService {
       }
     }
 
-    if (this.config.get<string>('nodeEnv') !== 'production') {
-      this.logger.log(`OTP for ${phoneE164}: ${code}`);
-    }
-
     return { expiresInSeconds: ttl };
   }
 
@@ -84,8 +99,8 @@ export class AuthService {
     code: string,
     deviceId: string,
   ): Promise<TokenResponse> {
-    const stored = await this.redis.client.get(`otp:${phoneE164}`);
-    if (!stored || stored !== code) {
+    const consumed = await this.consumeOtp(phoneE164, code);
+    if (!consumed) {
       await this.audit.append({
         action: AuditAction.AUTH_FAILED,
         metadata: { phoneE164, reason: 'invalid_otp' },
@@ -93,7 +108,6 @@ export class AuthService {
       throw new UnauthorizedException('invalid_otp');
     }
 
-    await this.redis.client.del(`otp:${phoneE164}`);
     const user = await this.users.findOrCreateByPhone(phoneE164);
     if (!user.isActive) {
       await this.audit.append({
@@ -233,6 +247,23 @@ export class AuthService {
     return result.tokens;
   }
 
+  private async consumeOtp(phoneE164: string, code: string): Promise<boolean> {
+    const key = `otp:${phoneE164}`;
+    const stored = await this.redis.client.get(key);
+    if (!stored) return false;
+    const separator = stored.indexOf(':');
+    if (separator < 1) return false;
+    const salt = stored.slice(0, separator);
+    const candidate = encodeOtp(code, salt);
+    const consumed = await this.redis.client.eval(
+      CONSUME_OTP_SCRIPT,
+      1,
+      key,
+      candidate,
+    );
+    return Number(consumed) === 1;
+  }
+
   private async verifyRefreshToken(
     refreshToken: string,
   ): Promise<RefreshTokenPayload> {
@@ -315,6 +346,11 @@ export class AuthService {
       manager,
     );
   }
+}
+
+function encodeOtp(code: string, salt: string): string {
+  const digest = scryptSync(code, salt, 32).toString('hex');
+  return `${salt}:${digest}`;
 }
 
 function hashToken(token: string): string {

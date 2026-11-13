@@ -42,6 +42,7 @@ export default () => {
     otp: {
       ttlSeconds: Number(env.OTP_TTL_SECONDS ?? 300),
       length: Number(env.OTP_LENGTH ?? 6),
+      testCode: env.OTP_TEST_CODE,
     },
     fcmEnabled: String(env.FCM_ENABLED) === 'true' || env.FCM_ENABLED === true,
     firebase: {

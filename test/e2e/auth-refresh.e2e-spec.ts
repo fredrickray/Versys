@@ -16,6 +16,9 @@ type TokenBody = {
   expiresIn: string;
 };
 
+const OTP_TEST_CODE = '123456';
+process.env.OTP_TEST_CODE ??= OTP_TEST_CODE;
+
 describe('device-bound refresh sessions', () => {
   let app: INestApplication;
   let dataSource: DataSource;
@@ -62,18 +65,25 @@ describe('device-bound refresh sessions', () => {
     return `00000000-0000-4000-8000-${String(suffix).padStart(12, '0')}`;
   }
 
-  async function login(phoneE164: string, deviceId: string): Promise<TokenBody> {
+  function sessionId(refreshToken: string): string {
+    const payload = new JwtService().decode<{ sid?: string }>(refreshToken);
+    if (!payload?.sid) throw new Error('refresh_session_id_missing');
+    return payload.sid;
+  }
+
+  async function login(
+    phoneE164: string,
+    deviceId: string,
+  ): Promise<TokenBody> {
     const server = app.getHttpServer() as Parameters<typeof request>[0];
     await redis.client.del(`otp:throttle:${phoneE164}`);
     await request(server)
       .post('/v1/auth/otp/request')
       .send({ phoneE164 })
       .expect(202);
-    const code = await redis.client.get(`otp:${phoneE164}`);
-    expect(code).toBeTruthy();
     const response: Response = await request(server)
       .post('/v1/auth/otp/verify')
-      .send({ phoneE164, code, deviceId })
+      .send({ phoneE164, code: OTP_TEST_CODE, deviceId })
       .expect(201);
     return response.body as TokenBody;
   }
@@ -94,10 +104,8 @@ describe('device-bound refresh sessions', () => {
     const phone = nextPhone();
     const deviceId = device(1);
     const issued = await login(phone, deviceId);
-    const payload = new JwtService().decode(issued.refreshToken) as {
-      sid: string;
-    };
-    const before = await sessions.findOneByOrFail({ id: payload.sid });
+    const issuedSessionId = sessionId(issued.refreshToken);
+    const before = await sessions.findOneByOrFail({ id: issuedSessionId });
 
     expect(before.deviceId).toBe(deviceId);
     expect(before.currentTokenHash).not.toContain(issued.refreshToken);
@@ -110,7 +118,7 @@ describe('device-bound refresh sessions', () => {
     expect(rotated.accessToken).toBeTruthy();
     expect(rotated.refreshToken).not.toBe(issued.refreshToken);
 
-    const after = await sessions.findOneByOrFail({ id: payload.sid });
+    const after = await sessions.findOneByOrFail({ id: issuedSessionId });
     expect(after.currentTokenHash).toBe(
       createHash('sha256').update(rotated.refreshToken).digest('hex'),
     );
@@ -172,6 +180,36 @@ describe('device-bound refresh sessions', () => {
     await rotate(familyB.refreshToken, device(7), 200);
   });
 
+  it('atomically consumes a salted OTP during concurrent verification', async () => {
+    const phoneE164 = nextPhone();
+    const deviceId = device(11);
+    const server = app.getHttpServer() as Parameters<typeof request>[0];
+    await redis.client.del(`otp:throttle:${phoneE164}`);
+    await request(server)
+      .post('/v1/auth/otp/request')
+      .send({ phoneE164 })
+      .expect(202);
+
+    const stored = await redis.client.get(`otp:${phoneE164}`);
+    expect(stored).toBeTruthy();
+    expect(stored).not.toContain(OTP_TEST_CODE);
+
+    const responses = await Promise.all([
+      request(server)
+        .post('/v1/auth/otp/verify')
+        .send({ phoneE164, code: OTP_TEST_CODE, deviceId }),
+      request(server)
+        .post('/v1/auth/otp/verify')
+        .send({ phoneE164, code: OTP_TEST_CODE, deviceId }),
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      201, 401,
+    ]);
+
+    const user = await users.findOneByOrFail({ phoneE164 });
+    expect(await sessions.count({ where: { userId: user.id } })).toBe(1);
+  });
+
   it('rejects access tokens, expired sessions, and inactive users', async () => {
     const phone = nextPhone();
     const deviceId = device(9);
@@ -179,10 +217,8 @@ describe('device-bound refresh sessions', () => {
 
     await rotate(issued.accessToken, deviceId, 401);
 
-    const payload = new JwtService().decode(issued.refreshToken) as {
-      sid: string;
-    };
-    await sessions.update({ id: payload.sid }, { expiresAt: new Date(0) });
+    const issuedSessionId = sessionId(issued.refreshToken);
+    await sessions.update({ id: issuedSessionId }, { expiresAt: new Date(0) });
     await rotate(issued.refreshToken, deviceId, 401);
 
     const second = await login(phone, device(10));

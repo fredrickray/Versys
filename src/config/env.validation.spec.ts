@@ -37,6 +37,24 @@ describe('environment validation', () => {
     ).toHaveLength(32);
   });
 
+  it('allows deterministic OTPs only in the test environment', () => {
+    expect(
+      validateEnv({
+        ...baseEnv,
+        NODE_ENV: 'test',
+        OTP_TEST_CODE: '123456',
+      }).OTP_TEST_CODE,
+    ).toBe('123456');
+    expect(() =>
+      validateEnv({
+        ...baseEnv,
+        NODE_ENV: 'production',
+        CHANNEL_WEBHOOK_SECRET: 's'.repeat(32),
+        OTP_TEST_CODE: '123456',
+      }),
+    ).toThrow('OTP_TEST_CODE');
+  });
+
   it('rejects unapproved live inbound channels and shared JWT secrets', () => {
     expect(() =>
       validateEnv({ ...baseEnv, CHANNEL_SIMULATOR_ONLY: 'false' }),

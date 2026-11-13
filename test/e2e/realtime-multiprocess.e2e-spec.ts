@@ -11,6 +11,8 @@ const ROOT = resolve(__dirname, '../..');
 const API_PORT = 3210;
 const REALTIME_PORT = 3211;
 const DEVICE_ID = '00000000-0000-4000-8000-000000000030';
+const OTP_TEST_CODE = '123456';
+process.env.OTP_TEST_CODE ??= OTP_TEST_CODE;
 
 type Tokens = { accessToken: string; refreshToken: string };
 type ManagedProcess = {
@@ -209,10 +211,9 @@ describe('API to worker to dedicated realtime process', () => {
       .post('/v1/auth/otp/request')
       .send({ phoneE164 })
       .expect(202);
-    const code = await redis.get(`otp:${phoneE164}`);
     const response: Response = await request(`http://127.0.0.1:${API_PORT}`)
       .post('/v1/auth/otp/verify')
-      .send({ phoneE164, code, deviceId })
+      .send({ phoneE164, code: OTP_TEST_CODE, deviceId })
       .expect(201);
     return response.body as Tokens;
   }
