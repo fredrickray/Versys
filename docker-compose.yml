@@ -72,6 +72,7 @@ services:
     env_file: .env
     environment:
       <<: *app-env
+      PROCESS: api
       API_PORT: 3000
     ports:
       - "3000:3000"
@@ -82,7 +83,6 @@ services:
         condition: service_healthy
       seed:
         condition: service_completed_successfully
-    command: ["node", "dist/main.api.js"]
     profiles: ["app"]
 
   realtime:
@@ -91,6 +91,7 @@ services:
     env_file: .env
     environment:
       <<: *app-env
+      PROCESS: realtime
       REALTIME_PORT: 3001
     ports:
       - "3001:3001"
@@ -101,7 +102,6 @@ services:
         condition: service_healthy
       seed:
         condition: service_completed_successfully
-    command: ["node", "dist/main.realtime.js"]
     profiles: ["app"]
 
   worker:
@@ -110,6 +110,7 @@ services:
     env_file: .env
     environment:
       <<: *app-env
+      PROCESS: worker
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,7 +118,6 @@ services:
         condition: service_healthy
       seed:
         condition: service_completed_successfully
-    command: ["node", "dist/main.worker.js"]
     profiles: ["app"]
 
 volumes:
