@@ -7,6 +7,7 @@ import { ApiModule } from './api.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { CorrelationIdInterceptor } from './common/interceptors/correlation-id.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { resolveListenPort } from './common/utils/listen-port';
 
 async function bootstrap() {
   const app = await NestFactory.create(ApiModule, { bufferLogs: true });
@@ -57,7 +58,7 @@ async function bootstrap() {
     logger.error('MAINTENANCE_MODE active — non-health routes return 503');
   }
 
-  const port = config.getOrThrow<number>('apiPort');
+  const port = resolveListenPort(config.getOrThrow<number>('apiPort'));
   await app.listen(port);
   logger.log(`API listening on :${port}`);
 }
