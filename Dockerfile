@@ -16,9 +16,14 @@ RUN npm run build && npm prune --omit=dev
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-USER node
+# Default process when the host cannot override CMD (e.g. Instacloud).
+# Override per service with env: PROCESS=api|realtime|worker
+ENV PROCESS=api
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/package.json ./
+COPY --chown=node:node docker/entrypoint.sh /app/docker/entrypoint.sh
+RUN chmod +x /app/docker/entrypoint.sh
+USER node
 EXPOSE 3000 3001
-CMD ["node", "dist/main.api.js"]
+ENTRYPOINT ["/bin/sh", "/app/docker/entrypoint.sh"]
