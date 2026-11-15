@@ -8,7 +8,7 @@ describe('resolveExternalContactSeeds', () => {
     const rows = resolveExternalContactSeeds({});
     expect(rows).toHaveLength(5);
     expect(rows.every((r) => r.isPlaceholder && !r.fromEnv)).toBe(true);
-    expect(isPlaceholderLevel4Phone(rows[0]!.phoneE164)).toBe(true);
+    expect(isPlaceholderLevel4Phone(rows[0].phoneE164)).toBe(true);
   });
 
   it('overrides phones from env', () => {

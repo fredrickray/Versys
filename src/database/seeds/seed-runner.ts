@@ -100,7 +100,6 @@ export async function seedAll(
     .filter((c: ResolvedExternalContact) => c.isPlaceholder)
     .map((c) => c.key);
   if (level4Placeholders.length > 0) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[seed] Level-4 placeholder phones still set for: ${level4Placeholders.join(', ')}. ` +
         `Set LEVEL4_PHONE_* in .env before live ops (see docs/runbooks/event-ops-pack.md).`,

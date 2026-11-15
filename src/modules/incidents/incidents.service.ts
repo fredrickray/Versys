@@ -337,10 +337,7 @@ export class IncidentsService {
         photoCount: photoUrls.length,
       },
     });
-    return this.toView(
-      saved,
-      await this.needsPreciseLocation(saved.id, actor),
-    );
+    return this.toView(saved, await this.needsPreciseLocation(saved.id, actor));
   }
 
   findById(id: string): Promise<IncidentEntity | null> {

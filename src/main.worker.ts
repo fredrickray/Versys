@@ -31,7 +31,6 @@ async function bootstrap() {
   const logger = new Logger('Worker');
   const port = resolveListenPort(Number(process.env.WORKER_PORT) || 3002);
 
-  // eslint-disable-next-line no-console
   console.log(
     `[Worker] opening health listener on 0.0.0.0:${port} (PORT=${process.env.PORT ?? ''})`,
   );
@@ -40,7 +39,6 @@ async function bootstrap() {
   try {
     server = await startHealthServer(port);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('[Worker] failed to bind health port', err);
     process.exit(1);
   }
@@ -62,7 +60,8 @@ async function bootstrap() {
           .close()
           .then(() => process.exit(0))
           .catch((error: unknown) => {
-            const message = error instanceof Error ? error.stack : String(error);
+            const message =
+              error instanceof Error ? error.stack : String(error);
             logger.error(message);
             process.exit(1);
           });

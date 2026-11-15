@@ -151,7 +151,9 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
       code: z.ZodIssueCode.custom,
       path: ['DATABASE_URL'],
       message:
-        error instanceof Error ? error.message : 'Invalid database configuration',
+        error instanceof Error
+          ? error.message
+          : 'Invalid database configuration',
     });
   }
   try {
@@ -168,7 +170,8 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['CHANNEL_SIMULATOR_ONLY'],
-      message: 'live inbound channels require an approved signed provider adapter',
+      message:
+        'live inbound channels require an approved signed provider adapter',
     });
   }
   if (
@@ -178,7 +181,8 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['CHANNEL_WEBHOOK_SECRET'],
-      message: 'must contain at least 32 characters outside development and test',
+      message:
+        'must contain at least 32 characters outside development and test',
     });
   }
   if (env.OTP_TEST_CODE && env.NODE_ENV !== 'test') {
