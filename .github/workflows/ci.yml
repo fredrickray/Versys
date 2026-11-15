@@ -54,13 +54,14 @@ jobs:
         run: npm install -g npm@10.9.2
       - run: npm ci
       - run: npm run lint
-      - run: npm test -- --passWithNoTests
+      - run: git diff --exit-code
+      - run: npm test -- --runInBand
       - run: npm run build
       - name: Migrate + seed
         run: |
           npm run migration:run
           npm run seed
-      - name: E2E core loop
+      - name: E2E critical scenarios
         run: npm run test:e2e
         env:
           NODE_OPTIONS: --experimental-vm-modules

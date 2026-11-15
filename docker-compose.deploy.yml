@@ -28,6 +28,9 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - versys_redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -138,3 +141,4 @@ networks:
 
 volumes:
   versys_pg:
+  versys_redis:

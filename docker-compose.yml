@@ -22,8 +22,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: versys-redis
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
+    volumes:
+      - versys_redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -122,3 +125,4 @@ services:
 
 volumes:
   versys_pg:
+  versys_redis:

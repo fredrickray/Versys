@@ -1,19 +1,19 @@
 # syntax=docker/dockerfile:1.7
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 # Match CI lockfile generation (npm 10)
 RUN npm install -g npm@10.9.2
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 RUN npm install -g npm@10.9.2
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build && npm prune --omit=dev
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # Default process when the host cannot override CMD (e.g. Instacloud).
