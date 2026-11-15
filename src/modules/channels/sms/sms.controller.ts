@@ -230,7 +230,7 @@ export class SmsController {
   ): Promise<void> {
     try {
       if (completion.incident) {
-        await this.incidents.publishCreated(completion.incident);
+        this.incidents.publishCreated(completion.incident);
       }
       await this.channels.sendSms({
         toE164: completion.toE164,

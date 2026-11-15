@@ -37,6 +37,7 @@ export const STAFF_PERMISSIONS: Readonly<
     Permission.VIEW_ANALYTICS,
     Permission.LEVEL4_ESCALATE,
     Permission.MANAGE_USERS,
+    Permission.MANAGE_DRILLS,
   ]),
 };
 

@@ -8,6 +8,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 import { IncidentChannel, IncidentType } from '../../../common/enums';
 import { IsEnum } from 'class-validator';
@@ -15,6 +16,7 @@ import { IsEnum } from 'class-validator';
 export class OfflineAlertDto {
   /** Client-generated idempotency key for retries */
   @IsString()
+  @MinLength(1)
   @MaxLength(64)
   clientEventId!: string;
 

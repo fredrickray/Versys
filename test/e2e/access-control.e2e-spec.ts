@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.fil
 import { CorrelationIdInterceptor } from '../../src/common/interceptors/correlation-id.interceptor';
 import { DEMO_PHONES } from '../../src/database/seeds/demo-users.seed';
 import { seedAll } from '../../src/database/seeds/seed-runner';
+import { seedAll } from '../../src/database/seeds/seed-runner';
 import { UserEntity } from '../../src/modules/users/entities/user.entity';
 import { RedisService } from '../../src/redis/redis.service';
 
@@ -57,6 +58,10 @@ describe('current authorization and incident privacy', () => {
     await seedAll(dataSource, { demoUsers: true });
   });
 
+  afterEach(async () => {
+    await seedAll(dataSource, { demoUsers: true });
+  });
+
   afterAll(async () => {
     await app?.close();
   });
@@ -91,6 +96,7 @@ describe('current authorization and incident privacy', () => {
     const response: Response = await request(server())
       .post('/v1/incidents')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Idempotency-Key', `access-${Date.now()}-${sequence}`)
       .send({
         type: 'fight',
         channel: 'app_button',

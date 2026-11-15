@@ -34,7 +34,7 @@ export class LocationRetentionService implements OnModuleInit {
   async purge(): Promise<{ deleted: number }> {
     const days = this.config.getOrThrow<number>('locationRetentionDays');
     const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const result = await this.pings.delete({ recordedAt: LessThan(cutoff) });
+    const result = await this.pings.delete({ createdAt: LessThan(cutoff) });
     const deleted = result.affected ?? 0;
     this.logger.log(
       `Location retention purged ${deleted} pings older than ${cutoff.toISOString()}`,

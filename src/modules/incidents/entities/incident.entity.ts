@@ -66,6 +66,22 @@ export class IncidentEntity {
   @Column({ type: 'uuid', nullable: true })
   resolvedByUserId!: string | null;
 
+  @Column({ type: 'integer', default: 0 })
+  escalationGeneration!: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  escalationHoldAt!: Date | null;
+
+  @Index()
+  @Column({ type: 'boolean', default: false })
+  isDrill!: boolean;
+
+  @Column({ type: 'varchar', length: 240, nullable: true })
+  drillPurpose!: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  drillActorUserId!: string | null;
+
   @Column({ type: 'jsonb', default: {} })
   metadata!: Record<string, unknown>;
 

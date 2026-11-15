@@ -26,6 +26,10 @@ export class NotificationAttemptEntity {
   @Column({ type: 'varchar', length: 64 })
   templateKey!: string;
 
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 220, nullable: true })
+  intentKey!: string | null;
+
   @Column({ type: 'varchar', length: 24, default: 'pending' })
   status!: 'pending' | 'sent' | 'acked' | 'failed' | 'fallback_sms';
 

@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -14,9 +16,12 @@ import {
   CurrentUser,
   type AuthUser,
 } from '../../common/decorators/current-user.decorator';
-import { IncidentStatus } from '../../common/enums';
+import { RequirePermissions } from '../../common/decorators/require-permission.decorator';
+import { IncidentStatus, Permission } from '../../common/enums';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { AddIncidentDetailsDto } from './dto/add-incident-details.dto';
+import { CreateDrillDto } from './dto/create-drill.dto';
 import { CreateIncidentDto } from './dto/create-incident.dto';
 import { OfflineAlertDto } from './dto/offline-alert.dto';
 import { IncidentsService } from './incidents.service';
@@ -31,9 +36,35 @@ export class IncidentsController {
   ) {}
 
   @Post()
-  async create(@Body() dto: CreateIncidentDto, @CurrentUser() user: AuthUser) {
-    const incident = await this.incidents.create(dto, { userId: user.userId });
-    return this.incidents.toView(incident, false);
+  create(
+    @Body() dto: CreateIncidentDto,
+    @CurrentUser() user: AuthUser,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.incidents.createIdempotent(
+      dto,
+      { userId: user.userId },
+      'incident_api',
+      requireIdempotencyKey(idempotencyKey),
+    );
+  }
+
+  @Post('drills')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_DRILLS)
+  createDrill(
+    @Body() dto: CreateDrillDto,
+    @CurrentUser() user: AuthUser,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const { purpose, ...incident } = dto;
+    return this.incidents.createIdempotent(
+      incident,
+      { userId: user.userId },
+      'incident_drill',
+      requireIdempotencyKey(idempotencyKey),
+      { isDrill: true, drillPurpose: purpose },
+    );
   }
 
   /** Phone offline queue flush — idempotent per clientEventId. */
@@ -68,4 +99,12 @@ export class IncidentsController {
   ) {
     return this.incidents.findOneForActor(incidentId, user);
   }
+}
+
+function requireIdempotencyKey(value?: string): string {
+  const key = value?.trim() ?? '';
+  if (!key || key.length > 120 || !/^[A-Za-z0-9._-]+$/.test(key)) {
+    throw new BadRequestException('invalid_idempotency_key');
+  }
+  return key;
 }

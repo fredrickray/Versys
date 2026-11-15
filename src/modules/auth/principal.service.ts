@@ -17,6 +17,7 @@ export class PrincipalService {
     return {
       userId: user.id,
       staffCategory: user.staffCategory,
+      userCategory: user.userCategory,
       isDispatcher: user.isDispatcher,
       permissions: this.rbac.permissionsFor({
         staffCategory: user.staffCategory,

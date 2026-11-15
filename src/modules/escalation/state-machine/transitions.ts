@@ -146,9 +146,6 @@ export function evaluateTransition(
     }
 
     case 'auto_escalate': {
-      if (!canAutoEscalate(ctx.alertLevel)) {
-        return { ok: false, reason: 'auto_escalation_frozen', freeze: true };
-      }
       if (!ctx.promptIssuedAt) {
         return { ok: false, reason: 'prompt_not_issued' };
       }
@@ -158,6 +155,9 @@ export function evaluateTransition(
         sincePrompt < timers.AUTO_ESCALATE_AFTER_PROMPT_MS
       ) {
         return { ok: false, reason: 'auto_escalate_not_due' };
+      }
+      if (!canAutoEscalate(ctx.alertLevel)) {
+        return { ok: false, reason: 'auto_escalation_frozen', freeze: true };
       }
       const next = nextAlertLevel(ctx.alertLevel);
       if (!next || next === AlertLevel.ULTRA) {

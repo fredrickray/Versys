@@ -9,7 +9,7 @@ import {
 import { AssignmentStatus, RejectionReason } from '../../../common/enums';
 
 @Entity({ name: 'assignments' })
-@Index(['incidentId', 'assigneeUserId'])
+@Index(['incidentId', 'assigneeUserId'], { unique: true })
 export class AssignmentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -39,6 +39,12 @@ export class AssignmentEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   rejectedAt!: Date | null;
+
+  @Column({ type: 'integer', default: 0 })
+  generation!: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  withdrawnAt!: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;

@@ -33,12 +33,17 @@ export class AnnouncementsService {
     if (!any && !own) {
       throw new ForbiddenException('cannot_push_announcements');
     }
-    // CAT2 "own sub-categories" — Phase 2: allow listed targets; tighten mapping later
+    if (dto.targetCategories.includes(UserCategory.UNIVERSITY_MANAGEMENT)) {
+      throw new ForbiddenException('mfa_required_for_high_impact_announcement');
+    }
     if (
       !any &&
-      dto.targetCategories.includes(UserCategory.UNIVERSITY_MANAGEMENT)
+      (!actor.userCategory ||
+        dto.targetCategories.some(
+          (category) => category !== actor.userCategory,
+        ))
     ) {
-      throw new ForbiddenException('cannot_target_management');
+      throw new ForbiddenException('cannot_target_other_categories');
     }
 
     const row = await this.announcements.save(
@@ -88,13 +93,19 @@ export class AnnouncementsService {
   }
 
   async listForUser(
-    _user: AuthUser,
+    user: AuthUser,
     limit = 50,
   ): Promise<AnnouncementWithAuthor[]> {
-    // Inbox: announcements targeting the user's category or GENERAL broadcast list
+    if (!user.userCategory) return [];
     const rows = await this.announcements
-      .createQueryBuilder('a')
-      .orderBy('a.published_at', 'DESC')
+      .createQueryBuilder('announcement')
+      .where(':category = ANY(announcement.target_categories)', {
+        category: user.userCategory,
+      })
+      .orWhere(':general = ANY(announcement.target_categories)', {
+        general: UserCategory.GENERAL,
+      })
+      .orderBy('announcement.published_at', 'DESC')
       .take(limit)
       .getMany();
     return this.withAuthorNames(rows);

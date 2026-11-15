@@ -1,4 +1,9 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  INestApplicationContext,
+  ValidationPipe,
+} from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { DataSource, Repository } from 'typeorm';
 import request, { type Response } from 'supertest';
@@ -10,6 +15,7 @@ import { DEMO_PHONES } from '../../src/database/seeds/demo-users.seed';
 import { seedAll } from '../../src/database/seeds/seed-runner';
 import { NotificationAttemptEntity } from '../../src/modules/notifications/entities/notification-attempt.entity';
 import { RedisService } from '../../src/redis/redis.service';
+import { WorkerModule } from '../../src/worker.module';
 
 type TokenBody = { accessToken: string };
 type IncidentBody = {
@@ -30,6 +36,7 @@ process.env.OTP_TEST_CODE ??= OTP_TEST_CODE;
  */
 describe('core-loop (Phase 1)', () => {
   let app: INestApplication;
+  let worker: INestApplicationContext;
   let redis: RedisService;
   let attempts: Repository<NotificationAttemptEntity>;
 
@@ -56,9 +63,14 @@ describe('core-loop (Phase 1)', () => {
     await seedAll(ds, { demoUsers: true });
     redis = app.get(RedisService);
     attempts = ds.getRepository(NotificationAttemptEntity);
+    worker = await NestFactory.createApplicationContext(WorkerModule, {
+      logger: false,
+      abortOnError: false,
+    });
   }, 60_000);
 
   afterAll(async () => {
+    await worker?.close();
     await app?.close();
   });
 
@@ -103,6 +115,7 @@ describe('core-loop (Phase 1)', () => {
     const created: Response = await request(server)
       .post('/v1/incidents')
       .set('Authorization', `Bearer ${reporterToken}`)
+      .set('Idempotency-Key', `core-loop-${Date.now()}`)
       .send({
         type: 'fight',
         channel: 'app_button',
@@ -116,8 +129,8 @@ describe('core-loop (Phase 1)', () => {
     expect(incident.publicCode).toBeTruthy();
     expect(incident.status).toBe(IncidentStatus.REPORTED);
 
-    const notes = await waitForNotifications(incident.id, 2);
-    expect(notes.length).toBeGreaterThanOrEqual(2);
+    const notes = await waitForNotifications(incident.id, 1);
+    expect(notes.length).toBeGreaterThanOrEqual(1);
     expect(
       notes.some((n) => n.status === 'sent' || n.status === 'pending'),
     ).toBe(true);

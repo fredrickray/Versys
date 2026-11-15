@@ -20,7 +20,6 @@ import { initialAlertLevel } from '../../common/constants/incident';
 import {
   NEAREST_STAFF_LIMIT,
   NEAREST_STAFF_RADIUS_M,
-  STAFF_GEO_KEY,
 } from '../../common/constants/location';
 import { ALERT_LEVEL_NOTIFY_ROLES } from '../../common/constants/permissions';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
@@ -39,7 +38,12 @@ import { generatePublicCode } from '../../common/utils/public-code';
 import { RedisService } from '../../redis/redis.service';
 import { AuditService } from '../audit/audit.service';
 import { AssignmentEntity } from '../assignments/entities/assignment.entity';
+import {
+  InboundIdempotencyService,
+  type IdempotencyReservation,
+} from '../channels/inbound-idempotency.service';
 import { RealtimeOutboxService } from '../realtime/realtime-outbox.service';
+import { NotificationIntentService } from '../notifications/notification-intent.service';
 import { UsersService } from '../users/users.service';
 import { AddIncidentDetailsDto } from './dto/add-incident-details.dto';
 import { CreateIncidentDto } from './dto/create-incident.dto';
@@ -64,8 +68,30 @@ export type IncidentView = {
   promptIssuedAt: Date | null;
   firstAcceptedAt: Date | null;
   resolvedAt: Date | null;
+  isDrill: boolean;
+  drillPurpose: string | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type IncidentIdempotencyCommand = {
+  type: IncidentEntity['type'];
+  channel: IncidentEntity['channel'];
+  latitude: number | null;
+  longitude: number | null;
+  placeId: string | null;
+  locationLabel: string | null;
+  metadata: Record<string, unknown>;
+  isDrill: boolean;
+  drillPurpose: string | null;
+};
+
+type IncidentSubmissionSource =
+  'incident_api' | 'incident_drill' | 'offline_alert';
+
+type IncidentCreationOptions = {
+  isDrill?: boolean;
+  drillPurpose?: string | null;
 };
 
 @Injectable()
@@ -80,7 +106,9 @@ export class IncidentsService {
     private readonly users: UsersService,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
+    private readonly idempotency: InboundIdempotencyService,
     private readonly realtimeOutbox: RealtimeOutboxService,
+    private readonly notificationIntents: NotificationIntentService,
     private readonly events: EventEmitter2,
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
@@ -94,8 +122,68 @@ export class IncidentsService {
     const saved = await this.dataSource.transaction((manager) =>
       this.createWithinTransaction(dto, actor, manager),
     );
-    await this.publishCreated(saved);
+    this.publishCreated(saved);
     return saved;
+  }
+
+  reserveIdempotent(
+    dto: CreateIncidentDto,
+    actor: CreateIncidentActor,
+    source: IncidentSubmissionSource,
+    idempotencyKey: string,
+    options: IncidentCreationOptions = {},
+  ): Promise<IdempotencyReservation<IncidentView>> {
+    return this.idempotency.reserve(
+      source,
+      `${actor.userId ?? actor.phoneE164}:${idempotencyKey}`,
+      this.toIdempotencyCommand(dto, options),
+    );
+  }
+
+  async createIdempotent(
+    dto: CreateIncidentDto,
+    actor: CreateIncidentActor,
+    source: IncidentSubmissionSource,
+    idempotencyKey: string,
+    options: IncidentCreationOptions = {},
+  ): Promise<IncidentView> {
+    const command = this.toIdempotencyCommand(dto, options);
+    const result = await this.idempotency.execute(
+      source,
+      `${actor.userId ?? actor.phoneE164}:${idempotencyKey}`,
+      command,
+      async (manager, stored) => {
+        const incident = await this.createWithinTransaction(
+          {
+            type: stored.type,
+            channel: stored.channel,
+            latitude: stored.latitude ?? undefined,
+            longitude: stored.longitude ?? undefined,
+            placeId: stored.placeId ?? undefined,
+            locationLabel: stored.locationLabel ?? undefined,
+            metadata: stored.metadata,
+          },
+          actor,
+          manager,
+          {
+            isDrill: stored.isDrill,
+            drillPurpose: stored.drillPurpose,
+          },
+        );
+        return {
+          httpStatus: HttpStatus.CREATED,
+          body: this.toView(incident, false),
+          incidentId: incident.id,
+          value: incident,
+        };
+      },
+      () => this.assertRateLimit(actor),
+    );
+    const completed = this.idempotency.ensureCompleted(result);
+    if (completed.newlyCompleted && completed.value) {
+      this.publishCreated(completed.value);
+    }
+    return completed.body;
   }
 
   /**
@@ -106,9 +194,18 @@ export class IncidentsService {
     dto: CreateIncidentDto,
     actor: CreateIncidentActor,
     manager: EntityManager,
+    options: IncidentCreationOptions = {},
   ): Promise<IncidentEntity> {
     const incidents = manager.getRepository(IncidentEntity);
     const alertLevel = initialAlertLevel(dto.type);
+    const isDrill = options.isDrill === true;
+    const drillPurpose = isDrill ? options.drillPurpose?.trim() || null : null;
+    const metadata = { ...(dto.metadata ?? {}) };
+    delete metadata['drill'];
+    delete metadata['isDrill'];
+    if (isDrill && (!actor.userId || !drillPurpose)) {
+      throw new Error('invalid_drill_context');
+    }
     const incident = incidents.create({
       publicCode: await this.allocatePublicCode(incidents),
       type: dto.type,
@@ -121,7 +218,10 @@ export class IncidentsService {
       placeId: dto.placeId ?? null,
       latitude: dto.latitude ?? null,
       longitude: dto.longitude ?? null,
-      metadata: dto.metadata ?? {},
+      isDrill,
+      drillPurpose,
+      drillActorUserId: isDrill ? actor.userId : null,
+      metadata,
     });
     const saved = await incidents.save(incident);
 
@@ -137,6 +237,8 @@ export class IncidentsService {
           channel: saved.channel,
           alertLevel: saved.alertLevel,
           publicCode: saved.publicCode,
+          isDrill: saved.isDrill,
+          drillPurpose: saved.drillPurpose,
         },
       },
       manager,
@@ -146,12 +248,20 @@ export class IncidentsService {
       type: 'incident.created',
       incidentId: saved.id,
       occurredAt: saved.createdAt,
+      payload: { isDrill: saved.isDrill },
     });
+    if (!saved.isDrill) {
+      await this.notificationIntents.append(manager, {
+        eventKey: `incident.initial:${saved.id}`,
+        incidentId: saved.id,
+        kind: 'incident_initial',
+      });
+    }
     return saved;
   }
 
   /** Emits post-commit best-effort events for a newly persisted incident. */
-  async publishCreated(saved: IncidentEntity): Promise<void> {
+  publishCreated(saved: IncidentEntity): void {
     const payload: IncidentCreatedPayload = {
       incidentId: saved.id,
       type: saved.type,
@@ -165,17 +275,15 @@ export class IncidentsService {
     };
     this.events.emit(IncidentEvent.CREATED, payload);
 
-    const notifyUserIds = await this.resolveNotifyTargets(saved);
-    this.events.emit('incident.notify_targets', {
-      incidentId: saved.id,
-      userIds: notifyUserIds,
-      alertLevel: saved.alertLevel,
-      publicCode: saved.publicCode,
-      type: saved.type,
-    });
+    if (saved.isDrill) {
+      this.logger.log(
+        `Drill incident ${saved.publicCode} created without delivery`,
+      );
+      return;
+    }
 
     this.logger.log(
-      `Incident ${saved.publicCode} created level=${saved.alertLevel} notify=${notifyUserIds.length}`,
+      `Incident ${saved.publicCode} committed with durable notification intent`,
     );
   }
 
@@ -295,21 +403,11 @@ export class IncidentsService {
       promptIssuedAt: incident.promptIssuedAt,
       firstAcceptedAt: incident.firstAcceptedAt,
       resolvedAt: incident.resolvedAt,
+      isDrill: incident.isDrill,
+      drillPurpose: incident.drillPurpose,
       createdAt: incident.createdAt,
       updatedAt: incident.updatedAt,
     };
-  }
-
-  async markInterventionOngoing(incidentId: string): Promise<void> {
-    const incident = await this.findById(incidentId);
-    if (!incident || incident.status === IncidentStatus.RESOLVED) return;
-    if (incident.status === IncidentStatus.REPORTED) {
-      incident.status = IncidentStatus.INTERVENTION_ONGOING;
-    }
-    if (!incident.firstAcceptedAt) {
-      incident.firstAcceptedAt = new Date();
-    }
-    await this.incidents.save(incident);
   }
 
   async assertRateLimit(actor: CreateIncidentActor): Promise<void> {
@@ -326,54 +424,127 @@ export class IncidentsService {
     }
   }
 
-  /**
-   * Nearest Level-1 via Redis GEO when coordinates exist; always include dispatchers.
-   * Falls back to all active staff matching the alert-level role keys.
-   */
+  /** PostgreSQL/PostGIS is authoritative for eligible nearest staff. */
   async resolveNotifyTargets(incident: IncidentEntity): Promise<string[]> {
     const targets = new Set<string>();
-
     const dispatchers = await this.users.findActiveDispatchers();
     for (const dispatcher of dispatchers) targets.add(dispatcher.id);
 
-    const roleKeys = [...ALERT_LEVEL_NOTIFY_ROLES[incident.alertLevel]];
     const level1Roles = [...ALERT_LEVEL_NOTIFY_ROLES[AlertLevel.LOW]];
-    const rolesForGeo = level1Roles;
-
-    if (
-      incident.latitude != null &&
-      incident.longitude != null &&
-      rolesForGeo.length
-    ) {
-      const nearby = (await this.redis.client.call(
-        'GEORADIUS',
-        STAFF_GEO_KEY,
-        String(incident.longitude),
-        String(incident.latitude),
-        String(NEAREST_STAFF_RADIUS_M),
-        'm',
-        'ASC',
-        'COUNT',
-        String(NEAREST_STAFF_LIMIT),
-      )) as string[];
-
-      if (nearby?.length) {
-        const staff = await this.users.findActiveByStaffRoles(rolesForGeo);
-        const allowed = new Set(staff.map((member) => member.id));
-        for (const id of nearby) {
-          if (allowed.has(id)) targets.add(id);
-        }
-      }
-    }
-
-    if (targets.size <= dispatchers.length) {
-      const fallback = await this.users.findActiveByStaffRoles(
-        roleKeys.length ? roleKeys : level1Roles,
-      );
-      for (const member of fallback) targets.add(member.id);
-    }
-
+    const nearby = await this.nearestEligibleStaff(
+      level1Roles,
+      incident.latitude,
+      incident.longitude,
+    );
+    for (const userId of nearby) targets.add(userId);
     return [...targets];
+  }
+
+  async resolveLevelNotifyTargets(incident: IncidentEntity): Promise<string[]> {
+    const roles = [...ALERT_LEVEL_NOTIFY_ROLES[incident.alertLevel]];
+    const staff = roles.length
+      ? await this.users.findActiveByStaffRoles(roles)
+      : [];
+    const dispatchers = await this.users.findActiveDispatchers();
+    return [
+      ...new Set([
+        ...staff.map((member) => member.id),
+        ...dispatchers.map((dispatcher) => dispatcher.id),
+      ]),
+    ];
+  }
+
+  private async nearestEligibleStaff(
+    roleKeys: string[],
+    latitude: number | null,
+    longitude: number | null,
+  ): Promise<string[]> {
+    if (!roleKeys.length) return [];
+    const maxAgeMs = this.config.getOrThrow<number>('location.maxAgeMs');
+    const maxAccuracy = this.config.getOrThrow<number>(
+      'location.maxAccuracyMetres',
+    );
+    const hasCoordinates = latitude != null && longitude != null;
+    const rows = await this.dataSource.query<{ user_id: string }[]>(
+      `
+        WITH latest AS (
+          SELECT DISTINCT ON (ping.user_id)
+            ping.user_id,
+            ping.position
+          FROM location_pings ping
+          JOIN users candidate ON candidate.id = ping.user_id
+          LEFT JOIN staff_shifts shift ON shift.id = ping.shift_id
+          LEFT JOIN assignments assignment ON assignment.id = ping.assignment_id
+          LEFT JOIN incidents assigned_incident
+            ON assigned_incident.id = assignment.incident_id
+          WHERE candidate.is_active = true
+            AND candidate.staff_role_key = ANY($1::text[])
+            AND ping.recorded_at >= now() - ($2 * interval '1 millisecond')
+            AND ping.accuracy_metres <= $3
+            AND (
+              (
+                shift.status = 'active' AND
+                shift.expires_at > now()
+              ) OR (
+                assignment.status = 'accepted' AND
+                assigned_incident.status != 'resolved'
+              )
+            )
+          ORDER BY ping.user_id, ping.recorded_at DESC
+        )
+        SELECT user_id
+        FROM latest
+        WHERE (
+          $4::boolean = false OR
+          ST_DWithin(
+            position,
+            ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography,
+            $7
+          )
+        )
+        ORDER BY
+          CASE WHEN $4::boolean THEN
+            ST_Distance(
+              position,
+              ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography
+            )
+          END ASC NULLS LAST
+        LIMIT $8
+      `,
+      [
+        roleKeys,
+        maxAgeMs,
+        maxAccuracy,
+        hasCoordinates,
+        longitude ?? 0,
+        latitude ?? 0,
+        NEAREST_STAFF_RADIUS_M,
+        NEAREST_STAFF_LIMIT,
+      ],
+    );
+    return rows.map((row) => row.user_id);
+  }
+
+  private toIdempotencyCommand(
+    dto: CreateIncidentDto,
+    options: IncidentCreationOptions,
+  ): IncidentIdempotencyCommand {
+    const metadata = { ...(dto.metadata ?? {}) };
+    delete metadata['drill'];
+    delete metadata['isDrill'];
+    return {
+      type: dto.type,
+      channel: dto.channel,
+      latitude: dto.latitude ?? null,
+      longitude: dto.longitude ?? null,
+      placeId: dto.placeId ?? null,
+      locationLabel: dto.locationLabel ?? null,
+      metadata,
+      isDrill: options.isDrill === true,
+      drillPurpose: options.isDrill
+        ? options.drillPurpose?.trim() || null
+        : null,
+    };
   }
 
   private applyActorScope(

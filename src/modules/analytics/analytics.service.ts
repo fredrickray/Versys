@@ -42,6 +42,7 @@ export class AnalyticsService {
     const resolved = await this.incidents
       .createQueryBuilder('i')
       .where('i.status = :status', { status: IncidentStatus.RESOLVED })
+      .andWhere('i.is_drill = false')
       .andWhere('i.resolved_at BETWEEN :from AND :to', { from, to })
       .getMany();
 
@@ -62,8 +63,8 @@ export class AnalyticsService {
 
     const openCount = await this.incidents.count({
       where: [
-        { status: IncidentStatus.REPORTED },
-        { status: IncidentStatus.INTERVENTION_ONGOING },
+        { status: IncidentStatus.REPORTED, isDrill: false },
+        { status: IncidentStatus.INTERVENTION_ONGOING, isDrill: false },
       ],
     });
 
@@ -82,7 +83,9 @@ export class AnalyticsService {
     const incident = await this.incidents.findOne({
       where: { id: incidentId },
     });
-    if (!incident) throw new NotFoundException('incident_not_found');
+    if (!incident || incident.isDrill) {
+      throw new NotFoundException('incident_not_found');
+    }
 
     const accepted = await this.assignments.find({
       where: { incidentId, status: AssignmentStatus.ACCEPTED },

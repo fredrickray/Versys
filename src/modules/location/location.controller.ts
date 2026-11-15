@@ -18,11 +18,31 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { LocationPingDto } from './dto/location-ping.dto';
 import { LocationService } from './location.service';
+import { StaffShiftService } from './staff-shift.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class LocationController {
-  constructor(private readonly location: LocationService) {}
+  constructor(
+    private readonly location: LocationService,
+    private readonly shifts: StaffShiftService,
+  ) {}
+
+  @Post('location/shifts/start')
+  startShift(@CurrentUser() user: AuthUser) {
+    return this.shifts.start(user);
+  }
+
+  @Get('location/shifts/current')
+  currentShift(@CurrentUser() user: AuthUser) {
+    return this.shifts.current(user);
+  }
+
+  @Post('location/shifts/end')
+  @HttpCode(204)
+  async endShift(@CurrentUser() user: AuthUser): Promise<void> {
+    await this.shifts.end(user);
+  }
 
   @Post('location/ping')
   @HttpCode(202)

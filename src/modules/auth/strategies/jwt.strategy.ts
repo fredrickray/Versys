@@ -3,12 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { AuthUser } from '../../../common/decorators/current-user.decorator';
+import type { UserCategory } from '../../../common/enums';
 import { PrincipalService } from '../principal.service';
 
 export type JwtPayload = {
   sub: string;
   typ: 'access';
   staffCategory: number | null;
+  userCategory: UserCategory;
   isDispatcher: boolean;
   permissions: string[];
 };

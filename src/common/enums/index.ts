@@ -78,6 +78,7 @@ export enum Permission {
   DISPATCH_ASSIGN = 'dispatch_assign',
   LEVEL4_ESCALATE = 'level4_escalate',
   MANAGE_USERS = 'manage_users',
+  MANAGE_DRILLS = 'manage_drills',
 }
 
 export enum NotificationChannel {
@@ -104,4 +105,7 @@ export enum AuditAction {
   AUTH_REFRESH = 'auth.refresh',
   AUTH_SESSION_REVOKED = 'auth.session_revoked',
   AUTH_FAILED = 'auth.failed',
+  SHIFT_STARTED = 'shift.started',
+  SHIFT_ENDED = 'shift.ended',
+  SHIFT_EXPIRED = 'shift.expired',
 }

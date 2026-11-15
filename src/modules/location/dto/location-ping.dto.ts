@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsISO8601,
   IsNumber,
   IsOptional,
@@ -19,18 +18,13 @@ export class LocationPingDto {
   @Max(180)
   longitude!: number;
 
-  @IsOptional()
   @IsNumber()
   @Min(0)
-  accuracyMetres?: number;
+  accuracyMetres!: number;
 
   @IsOptional()
   @IsUUID()
   incidentId?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  onDuty?: boolean;
 
   @IsISO8601()
   recordedAt!: string;

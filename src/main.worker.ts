@@ -81,4 +81,8 @@ async function bootstrap() {
   }
 }
 
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  const message = error instanceof Error ? error.stack : String(error);
+  console.error(message);
+  process.exitCode = 1;
+});

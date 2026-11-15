@@ -22,6 +22,7 @@ Three independent axes. Do not collapse them in code or UI.
 | Push announcements (any) | | | ✓ |
 | View analytics | | | ✓ |
 | Level-4 escalate (phone log) | | | ✓ |
+| Create emergency-response drills | | | ✓ |
 
 Dispatcher overlay: assign, monitor map, close after 1h, Level-4 log, analytics.
 

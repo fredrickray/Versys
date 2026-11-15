@@ -225,6 +225,7 @@ describe('API to worker to dedicated realtime process', () => {
     const response: Response = await request(`http://127.0.0.1:${API_PORT}`)
       .post('/v1/incidents')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Idempotency-Key', label)
       .send({ type: 'fight', channel: 'app_button', locationLabel: label })
       .expect(201);
     return response.body as { id: string };

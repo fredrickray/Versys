@@ -24,6 +24,11 @@ export type InboundExecution<
   | { kind: 'in_progress'; retryAfterSeconds: number }
   | { kind: 'conflict' };
 
+export type IdempotencyReservation<TResponse extends Record<string, unknown>> =
+  | { kind: 'reserved'; id: string; newlyReserved: boolean }
+  | { kind: 'conflict' }
+  | Extract<InboundExecution<never, TResponse>, { kind: 'completed' }>;
+
 type Claimed = { kind: 'claimed'; id: string; ownerToken: string };
 type ClaimResult<TResponse extends Record<string, unknown>> =
   Claimed | InboundExecution<never, TResponse>;
@@ -89,6 +94,52 @@ export class InboundIdempotencyService {
       await this.recordFailure(claim, error);
       throw error;
     }
+  }
+
+  async reserve<
+    TRequest extends Record<string, unknown>,
+    TResponse extends Record<string, unknown>,
+  >(
+    source: string,
+    providerKey: string,
+    request: TRequest,
+  ): Promise<IdempotencyReservation<TResponse>> {
+    const requestHash = hash(stableJson(request));
+    return this.dataSource.transaction(async (manager) => {
+      const inserted = await manager.query<{ id: string }[]>(
+        `
+          INSERT INTO inbound_requests (
+            source,
+            provider_key,
+            request_hash,
+            request_payload,
+            status,
+            lease_owner,
+            lease_expires_at,
+            attempt_count
+          )
+          VALUES ($1, $2, $3, $4::jsonb, 'processing', NULL, NULL, 0)
+          ON CONFLICT (source, provider_key) DO NOTHING
+          RETURNING id
+        `,
+        [source, providerKey, requestHash, JSON.stringify(request)],
+      );
+      if (inserted[0]) {
+        return { kind: 'reserved', id: inserted[0].id, newlyReserved: true };
+      }
+
+      const existing = await manager
+        .getRepository(InboundRequestEntity)
+        .findOne({
+          where: { source, providerKey },
+        });
+      if (!existing) throw new Error('idempotency_reservation_lost');
+      if (existing.requestHash !== requestHash) return { kind: 'conflict' };
+      if (existing.status === 'completed') {
+        return this.completedResult<TResponse>(existing, false);
+      }
+      return { kind: 'reserved', id: existing.id, newlyReserved: false };
+    });
   }
 
   async findStoredRequest<TRequest extends Record<string, unknown>>(
@@ -179,25 +230,25 @@ export class InboundIdempotencyService {
         };
       }
 
-      const reclaimed = await manager.query<{ id: string }[]>(
-        `
-          UPDATE inbound_requests
-          SET
-            lease_owner = $1,
-            lease_expires_at = $2,
-            attempt_count = attempt_count + 1,
-            last_error = NULL
-          WHERE
-            id = $3 AND
-            status = 'processing' AND
-            request_hash = $4 AND
-            (lease_expires_at IS NULL OR lease_expires_at <= $5)
-          RETURNING id
-        `,
-        [ownerToken, leaseExpiresAt, existing.id, requestHash, now],
-      );
-      if (reclaimed[0]) {
-        return { kind: 'claimed', id: reclaimed[0].id, ownerToken };
+      const reclaimed = await manager
+        .getRepository(InboundRequestEntity)
+        .createQueryBuilder()
+        .update(InboundRequestEntity)
+        .set({
+          leaseOwner: ownerToken,
+          leaseExpiresAt,
+          attemptCount: () => 'attempt_count + 1',
+          lastError: null,
+        })
+        .where('id = :id', { id: existing.id })
+        .andWhere('status = :status', { status: 'processing' })
+        .andWhere('request_hash = :requestHash', { requestHash })
+        .andWhere('(lease_expires_at IS NULL OR lease_expires_at <= :now)', {
+          now,
+        })
+        .execute();
+      if (reclaimed.affected === 1) {
+        return { kind: 'claimed', id: existing.id, ownerToken };
       }
 
       const current = await manager
@@ -315,7 +366,7 @@ export class InboundIdempotencyService {
   private completedResult<TResponse extends Record<string, unknown>>(
     request: InboundRequestEntity,
     newlyCompleted: boolean,
-  ): InboundExecution<never, TResponse> {
+  ): Extract<InboundExecution<never, TResponse>, { kind: 'completed' }> {
     if (
       request.status !== 'completed' ||
       request.responseStatus == null ||

@@ -171,6 +171,16 @@ paths:
       tags: [Incidents]
       summary: Create incident (app / SOS / dispatcher-logged)
       security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: Client-generated key, scoped to the authenticated user.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+            pattern: '^[A-Za-z0-9._-]+$'
       requestBody:
         required: true
         content:
@@ -184,6 +194,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Incident"
+        "409":
+          description: Idempotency key was reused with a different payload
         "429":
           description: Alert rate limited
     get:
@@ -199,6 +211,38 @@ paths:
       responses:
         "200":
           description: Incident list
+  /incidents/drills:
+    post:
+      tags: [Incidents]
+      summary: Create an authorized drill without external delivery
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/CreateIncidentRequest"
+                - type: object
+                  required: [purpose]
+                  properties:
+                    purpose: { type: string, minLength: 3, maxLength: 240 }
+      responses:
+        "201":
+          description: Drill committed without FCM or SMS delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "403":
+          description: Missing drill-management permission
+        "409":
+          description: Idempotency key conflicts with another drill payload
   /incidents/offline:
     post:
       tags: [Incidents]
@@ -400,10 +444,35 @@ paths:
       responses:
         "200":
           description: Map payload
+  /location/shifts/start:
+    post:
+      tags: [Location]
+      summary: Start a server-owned staff shift
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201":
+          description: Active shift with server-owned expiry
+  /location/shifts/current:
+    get:
+      tags: [Location]
+      summary: Get the caller's active, unexpired shift
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Active shift or null
+  /location/shifts/end:
+    post:
+      tags: [Location]
+      summary: End the caller's active staff shift
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204":
+          description: Shift ended and stale routing context removed
   /location/ping:
     post:
       tags: [Location]
-      summary: Ingest location ping (incident or on-duty only)
+      summary: Ingest a fresh location ping under server-owned context
+      description: Requires either an active, unexpired staff shift or an accepted assignment on an open incident. Clients cannot set duty state.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -411,17 +480,18 @@ paths:
           application/json:
             schema:
               type: object
-              required: [latitude, longitude, recordedAt]
+              required: [latitude, longitude, accuracyMetres, recordedAt]
               properties:
-                latitude: { type: number }
-                longitude: { type: number }
-                accuracyMetres: { type: number }
+                latitude: { type: number, minimum: -90, maximum: 90 }
+                longitude: { type: number, minimum: -180, maximum: 180 }
+                accuracyMetres: { type: number, minimum: 0 }
                 incidentId: { type: string, format: uuid }
-                onDuty: { type: boolean }
                 recordedAt: { type: string, format: date-time }
       responses:
         "202":
           description: Accepted
+        "400":
+          description: Stale, future, inaccurate, out-of-order, or missing active context
   /devices/tokens:
     post:
       tags: [Devices]
@@ -851,7 +921,7 @@ components:
       type: object
       required: [clientEventId, type, channel, capturedAt]
       properties:
-        clientEventId: { type: string, maxLength: 64 }
+        clientEventId: { type: string, minLength: 1, maxLength: 64 }
         type: { $ref: "#/components/schemas/IncidentType" }
         channel:
           type: string
@@ -888,6 +958,8 @@ components:
         status: { $ref: "#/components/schemas/IncidentStatus" }
         alertLevel: { $ref: "#/components/schemas/AlertLevel" }
         channel: { type: string }
+        isDrill: { type: boolean }
+        drillPurpose: { type: string, nullable: true }
         locationLabel: { type: string, nullable: true }
         latitude: { type: number, nullable: true }
         longitude: { type: number, nullable: true }

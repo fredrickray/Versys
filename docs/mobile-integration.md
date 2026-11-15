@@ -70,16 +70,19 @@ Ack delivery (cancels SMS fallback):
 
 | Step | Call |
 |------|------|
-| Raise alert | `POST /v1/incidents` `{ type, channel, latitude?, longitude?, placeId?, locationLabel? }` |
+| Raise alert | `POST /v1/incidents` with an `Idempotency-Key` header and `{ type, channel, latitude?, longitude?, placeId?, locationLabel? }` |
 | Offline flush | `POST /v1/incidents/offline` — **requires** `clientEventId`, `type`, `channel`, `capturedAt` (ISO-8601) |
 | Staff self-accept | `POST /v1/incidents/{id}/assignments` `{}` (omit assignee = self-accept) |
 | Accept / reject | `POST /v1/assignments/{id}/accept` · `…/reject` `{ reason, note? }` |
-| Location | `POST /v1/location/ping` `{ latitude, longitude, recordedAt, incidentId?, onDuty?, accuracyMetres? }` |
+| Start/end duty | `POST /v1/location/shifts/start` · `POST /v1/location/shifts/end` |
+| Location | `POST /v1/location/ping` `{ latitude, longitude, recordedAt, accuracyMetres, incidentId? }` |
 
 `type` enum: `fire`, `fight`, `ongoing_crime`, `suspicious_movement`, `accident`, `invasion`, `violent_attack`  
 `channel` for app: prefer `app_button` or `rapid_sos`
 
 Incident reads are actor-scoped. A reporter sees their own incidents, an active accepted responder sees assigned incidents, and dispatch users see operational incidents. Unknown and unauthorized IDs both return `404`; precise coordinates are returned only for operational access.
+
+Generate one idempotency key per alert and reuse it for every retry. A key reused with a different payload returns `409`. Duty state is server-owned: start a shift before duty tracking, and never send an `onDuty` field. Location pings require fresh timestamps and acceptable GPS accuracy.
 
 ---
 

@@ -71,10 +71,23 @@ export default () => {
       .map((s) => s.trim())
       .filter(Boolean),
     locationRetentionDays: Number(env.LOCATION_RETENTION_DAYS ?? 30),
+    location: {
+      maxAgeMs: Number(env.LOCATION_MAX_AGE_SECONDS ?? 120) * 1_000,
+      futureSkewMs: Number(env.LOCATION_FUTURE_SKEW_SECONDS ?? 30) * 1_000,
+      maxAccuracyMetres: Number(env.LOCATION_MAX_ACCURACY_METRES ?? 100),
+      liveTtlSeconds: Number(env.LOCATION_LIVE_TTL_SECONDS ?? 180),
+      shiftDurationMs: Number(env.SHIFT_DURATION_SECONDS ?? 28800) * 1_000,
+    },
     rateLimitAlertsPerHour: Number(env.RATE_LIMIT_ALERTS_PER_HOUR ?? 10),
     rateLimitWebhooksPerMinute: Number(
       env.RATE_LIMIT_WEBHOOKS_PER_MINUTE ?? 60,
     ),
+    notifications: {
+      ackTimeoutMs: Number(env.NOTIFICATION_ACK_TIMEOUT_SECONDS ?? 45) * 1_000,
+      fallbackMaxAgeMs:
+        Number(env.NOTIFICATION_FALLBACK_MAX_AGE_SECONDS ?? 900) * 1_000,
+      fallbackMaxAttempts: Number(env.NOTIFICATION_FALLBACK_MAX_ATTEMPTS ?? 5),
+    },
     channelSimulatorOnly:
       String(env.CHANNEL_SIMULATOR_ONLY) === 'true' ||
       env.CHANNEL_SIMULATOR_ONLY === true,

@@ -1,8 +1,11 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
+import { UserCategory } from '../enums';
+
 export type AuthUser = {
   userId: string;
   staffCategory: number | null;
+  userCategory?: UserCategory;
   isDispatcher: boolean;
   permissions: string[];
 };

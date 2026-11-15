@@ -344,7 +344,7 @@ export class UssdService {
     completion: UssdCompletion,
   ): Promise<void> {
     try {
-      await this.incidents.publishCreated(completion.incident);
+      this.incidents.publishCreated(completion.incident);
       await this.channels.sendSms({
         toE164: completion.toE164,
         body: completion.reply,

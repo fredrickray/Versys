@@ -23,6 +23,12 @@ export class LocationPingEntity {
   @Column({ type: 'uuid', nullable: true })
   incidentId!: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  shiftId!: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  assignmentId!: string | null;
+
   @Column({ type: 'boolean', default: false })
   onDuty!: boolean;
 

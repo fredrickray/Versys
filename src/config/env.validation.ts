@@ -76,12 +76,36 @@ const baseEnvSchema = z.object({
     .default('http://localhost:3000,http://localhost:8081'),
 
   LOCATION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+  LOCATION_MAX_AGE_SECONDS: z.coerce.number().int().positive().default(120),
+  LOCATION_FUTURE_SKEW_SECONDS: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(30),
+  LOCATION_MAX_ACCURACY_METRES: z.coerce.number().positive().default(100),
+  LOCATION_LIVE_TTL_SECONDS: z.coerce.number().int().positive().default(180),
+  SHIFT_DURATION_SECONDS: z.coerce.number().int().positive().default(28800),
   RATE_LIMIT_ALERTS_PER_HOUR: z.coerce.number().int().positive().default(10),
   RATE_LIMIT_WEBHOOKS_PER_MINUTE: z.coerce
     .number()
     .int()
     .positive()
     .default(60),
+  NOTIFICATION_ACK_TIMEOUT_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(45),
+  NOTIFICATION_FALLBACK_MAX_AGE_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(900),
+  NOTIFICATION_FALLBACK_MAX_ATTEMPTS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5),
 
   /** Cloudinary incident-media configuration. */
   CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),
