@@ -59,8 +59,8 @@ async function bootstrap() {
   }
 
   const port = resolveListenPort(config.getOrThrow<number>('apiPort'));
-  await app.listen(port);
-  logger.log(`API listening on :${port}`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`API listening on 0.0.0.0:${port}`);
 }
 
 void bootstrap();
