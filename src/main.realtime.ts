@@ -10,8 +10,10 @@ async function bootstrap() {
   const logger = new Logger('Realtime');
   // Prefer Instacloud PORT (routed health-check) over REALTIME_PORT.
   const port = resolveListenPort(config.getOrThrow<number>('realtimePort'));
-  await app.listen(port);
-  logger.log(`Realtime Socket.IO listening on :${port} (namespace /realtime)`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(
+    `Realtime Socket.IO listening on 0.0.0.0:${port} (namespace /realtime)`,
+  );
 }
 
 void bootstrap();
