@@ -4,13 +4,15 @@ set -eu
 # Instacloud (and similar hosts) run the Dockerfile CMD and often cannot
 # override the start command. Set PROCESS per service instead:
 #   api | realtime | worker
-PROCESS="${PROCESS:-api}"
+PROCESS="$(echo "${PROCESS:-api}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+echo "[entrypoint] PROCESS=$PROCESS PORT=${PORT:-} API_PORT=${API_PORT:-} REALTIME_PORT=${REALTIME_PORT:-}"
 
 case "$PROCESS" in
   api)
     exec node dist/main.api.js
     ;;
-  realtime)
+  realtime|socket)
     exec node dist/main.realtime.js
     ;;
   worker)
